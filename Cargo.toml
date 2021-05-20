@@ -1,0 +1,18 @@
+[package]
+name = "mikrotik_monitoring"
+version = "0.1.0"
+authors = ["aSlade"]
+edition = "2018"
+
+[[bin]]
+name = "metrics"
+path = "src/main.rs"
+
+[lib]
+name = "mik_api"
+path = "src/lib.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+openssl = "0.10.34"
