@@ -16,3 +16,5 @@ path = "src/lib.rs"
 
 [dependencies]
 openssl = "0.10.34"
+# rust-crypto = "0.2.36"
+# rand = "0.8.3"

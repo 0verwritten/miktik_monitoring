@@ -55,7 +55,7 @@ pub mod mik_api{
         pub fn login(&mut self, username: &str, pwd: &str, overwrite: bool, verbose: bool) -> Result<(), String>{
             if self.username == None || overwrite == true { self.username = Some(String::from(username)); }
             if self.password == None || overwrite == true { self.password = Some(String::from(pwd)); }
-            self.tell(&["/login".to_string(), format!("=name={}", self.username.as_ref().unwrap()), format!("=password={}", self.password.as_ref().unwrap())].to_vec(), verbose);
+            self.tell(&["/login".to_string(), format!("=name={}", self.username.as_ref().unwrap()), format!("=password={}", self.password.as_ref().unwrap())].to_vec(), verbose).unwrap();
             Ok(())
         }
         
@@ -86,30 +86,63 @@ pub mod mik_api{
 
         fn reader(&mut self) -> String{ // net::TcpStream
             let mut res = String::new();
-            let mut data = [0 as u8; 50]; // using 50 byte buffer
+            let mut res_bytes = Vec::<u8>::new();        
+            let mut data = [0 as u8; 10]; // using 50 byte buffer
             if self.secured {
                 loop{ match self.ssl_stream.as_mut().unwrap().read(&mut data) {
                     Ok(size) => {
-                        res += &(|| -> String { let mut res = String::new(); for value in 0..size {if data[value] == 0 { res+="\n"; } else if value !=0 && data[value - 1] == 0 { continue; } else { res += from_utf8(&[data[value]]).unwrap(); } } res })();
-                        // for value in 0..data.len() {if data[value] == 0 { res+="\n"; } else { res += from_utf8(&[data[value]]).unwrap(); } }
-                        
+                        // res += &(|| -> String { let mut res = String::new(); for value in 0..size {if data[value] == 0 { res+="\n"; } else if value !=0 && data[value - 1] == 0 { continue; } else { res += from_utf8(&[data[value]]).unwrap(); } } res })();
                         // println!("{:?}", data);
-                        if size < 50{ break; }
+
+                        (|| { for value in 0..size { res_bytes.push(data[value]); } })();
+
+                        if size < data.len() { break; }
                     },
                     Err(_) => { panic!(format!("An error occurred, terminating connection")); }
             }}} else { 
                 loop{ match self.stream.as_mut().unwrap().read(&mut data) {
                     Ok(size) => {
-                        res += &(|| -> String { let mut res = String::new(); for value in 0..size {if data[value] == 0 { res+="\n"; } else if value !=0 && data[value - 1] == 0 { continue; } else { res += from_utf8(&[data[value]]).unwrap(); } } res })();
+                        // res += &(|| -> String { let mut res = String::new(); for value in 0..size {if data[value] == 0 { res+="\n"; } else if value !=0 && data[value - 1] == 0 { continue; } else { res += from_utf8(&[data[value]]).unwrap(); } } res })();
                         // for value in 0..data.len() {if data[value] == 0 { res+="\n"; } else { res += from_utf8(&[data[value]]).unwrap(); } }
-                        
                         // println!("{:?}", data);
-                        if size < 50{ break; }
+
+                        (|| { for value in 0..size { res_bytes.push(data[value]); } })();
+
+                        if size < data.len() { break; }
                     },
                     Err(_) => { panic!(format!("An error occurred, terminating connection")); }
             }}}
-            res
+            // println!("{:?}", res_bytes);
+            bytes_to_str(&res_bytes)
+            // res
         } 
+    }
+        
+    fn bytes_to_str(bytes: &[u8]) -> String {
+
+        let mut l = 0; // every word length
+        let mut res = String::new();
+        let mut iterator = 0; // iterrator for equal sign // temporary ( may be )
+
+        for i in 0..bytes.len(){
+            if ( i == 0 || l == 0 ) { if bytes[i] == 0 && i != bytes.len() - 1 { res += "\n"; continue; } else { l = bytes[i]; } }
+            else { 
+                l -= 1;
+                match from_utf8(&[bytes[i]]){
+                    Ok(val) => {
+                        if val == "=" {
+                            if iterator % 2== 0 { res+="\n" }
+                            else { res+="="; } 
+                            iterator += 1;
+                        }
+                        else{ res += val }
+                    },
+                    Err(e) => eprint!("Error during responce decoding: {}", e) 
+                }
+            }
+        }
+
+        res
     }
 
     fn dec_to_hec(mut value: usize) -> Vec::<u8>{

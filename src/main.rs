@@ -2,25 +2,10 @@ use core::str::from_utf8;
 use mik_api::mik_api::Connector;
 use std::net::SocketAddr;
 use std::io;
-/*
-TO DO:
-
-_ make some comments + function documentation
-_ remove length mark or use it correctly in router's reply
-_ async requests or parallel
-_ move enerything into a library
-+ ssl encryption
-_ rename functions to make them more meaningful
-_ ssl ca verification 
-_ ssl certificate acceptance
-_ make error type, not just a string
-_ utf8 error handling
-
-_ do all mikrotik queriy types
-
-*/
+use std::env;
 
 fn main(){
+
     let addrs = [
             // net::SocketAddr::from(([10, 54, 71, 3], 8728)),
             // net::SocketAddr::new("10.13.40.8".parse().unwrap(), 8728),
@@ -34,7 +19,7 @@ fn main(){
     for i in 0..connections.len(){
         connections[i].login(login, pass, false, true).expect("Login error");
     }
-
+    
     let mut lines = Vec::new();
     loop{
         let mut line = String::new();

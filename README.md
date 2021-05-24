@@ -4,9 +4,9 @@ Early version of monitoring tool. It doesn't have promtheus integration yet. For
 TO DO:
 
 - [ ] make some comments + function documentation
-- [ ] remove length mark or use it correctly in router's reply
+- [x] remove length mark or use it correctly in router's reply
 - [ ] async requests or parallel
-- [ ] move enerything into a library
+- [x] move enerything into a library
 - [x] ssl encryption
 - [ ] rename functions to make them more meaningful
 - [ ] ssl ca verification 
@@ -15,3 +15,5 @@ TO DO:
 - [ ] utf8 error handling
 - [ ] do all mikrotik queriy types
 - [ ] prometheus integration
+- [x] encrypt user credentials
+- [x] uft8 converter error ( some characters appears in the end of the responce or just disapear ... )
