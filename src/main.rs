@@ -41,8 +41,8 @@ fn main(){
         connections[i].login(login, pass, false, true).expect("Login error");
     }
     
-    connections[0].tell(&["/ip/address/print".to_string()].to_vec(), true);
-    // interactive(connections);
+    // connections[0].tell(&["/ip/address/print".to_string()].to_vec(), true);
+    interactive(connections);
 
     println!("Session ended");
 }
