@@ -13,7 +13,11 @@ TO DO:
 - [ ] ssl certificate acceptance
 - [ ] make error type, not just a string
 - [ ] utf8 error handling
-- [ ] do all mikrotik queriy types
+- [x] do all mikrotik queriy types
+- [ ] cover mikrotik responce message commands
 - [ ] prometheus integration
 - [x] encrypt user credentials
 - [x] uft8 converter error ( some characters appears in the end of the responce or just disapear ... )
+
+
+// separated interactive console and main function
