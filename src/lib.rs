@@ -1,7 +1,9 @@
 pub mod mik_api{
     extern crate openssl;
+    extern crate serde;
 
     use std::time::Duration;
+    use std::collections::HashMap;
     use core::str::from_utf8;
     use std::io::{Read, Write};
     use std::{net};
@@ -16,6 +18,14 @@ pub mod mik_api{
         username: Option<String>, // saves cridencials to restores session ( in development )
         password: Option<String>,
     }
+
+    #[derive(serde::Serialize, serde::Deserialize, Debug)]
+    pub struct Queries{
+        pub command: String,
+        pub multiple_objects: bool,
+        pub attributes: Vec<String>
+    }
+
     impl Connector{
         pub fn new(addrs: &[std::net::SocketAddr], use_ssl: bool, verbose: bool) -> Result<Vec::<Connector>, String>{
             let mut connections = Vec::new();
@@ -72,7 +82,8 @@ pub mod mik_api{
             
             let output = self.reader();
             if verbose == true{
-                println!(">> {}", &output);
+                // println!(">> {}", &output);
+                println!("{:?}", responce_decoder(&output[..]));
             }
             Ok(output)
 
@@ -85,7 +96,7 @@ pub mod mik_api{
         }
 
         fn reader(&mut self) -> String{ // net::TcpStream
-            let mut res = String::new();
+            // let mut res = String::new();
             let mut res_bytes = Vec::<u8>::new();        
             let mut data = [0 as u8; 10]; // using 50 byte buffer
             if self.secured {
@@ -117,6 +128,53 @@ pub mod mik_api{
             // res
         } 
     }
+
+    fn responce_decoder(responce: &str) -> Option::<Vec<HashMap::<String, String>>> { // temporary solution
+        let mut res = Vec::<HashMap::<String, String>>::new();
+
+        let mut landfill = responce.split("\n");
+
+        let fst_value = landfill.nth(0).unwrap();
+
+        if  &fst_value.len() >= &5usize && &fst_value[..5] == "!done"{
+            return None;
+        }if &fst_value.len() >= &5usize && &fst_value[..5] == "!trap" || &fst_value.len() >= &6usize && &fst_value[..6] == "!fatal" {
+            panic!(format!("Here is an error during parsing because of invalid responce {:?}", landfill));
+        }
+
+        let mut hashpiece = HashMap::new();
+        let queries: Vec<Queries> = queries_reader("commands.json");
+        for piece in landfill{
+            {
+                if &piece[..] == "!re"{
+                    res.push(hashpiece);
+                    hashpiece = HashMap::new();
+                    continue;
+                }
+                if &piece[..3] == ".id"{
+                    hashpiece.insert(String::from(&piece[1..3]), String::from(&piece[5..]));
+                }else if piece.contains("=") {
+                    let mut key = piece.split("=");
+                    let (key, value) = (key.nth(0).unwrap(), key.nth(0).unwrap());
+                    if queries[0].attributes.contains(&key.to_string()){
+                        hashpiece.insert(
+                            String::from(key), 
+                            String::from(value));
+                    }
+                }
+            }
+        }
+
+        Some(res)
+    }
+    fn queries_reader(file_name: &str) -> Vec::<Queries>{
+        let mut file_data = String::new();
+        let mut file = std::fs::File::open(file_name).unwrap();
+        file.read_to_string(&mut file_data);
+        let file_data: Vec<Queries> = serde_json::from_str(&file_data).unwrap();
+
+        file_data
+    }
         
     fn bytes_to_str(bytes: &[u8]) -> String {
 
@@ -125,7 +183,7 @@ pub mod mik_api{
         let mut iterator = 0; // iterrator for equal sign // temporary ( may be )
 
         for i in 0..bytes.len(){
-            if ( i == 0 || l == 0 ) { if bytes[i] == 0 && i != bytes.len() - 1 { res += "\n"; continue; } else { l = bytes[i]; } }
+            if i == 0 || l == 0 { if bytes[i] == 0 && i != bytes.len() - 1 { res += "\n"; continue; } else { l = bytes[i]; } }
             else { 
                 l -= 1;
                 match from_utf8(&[bytes[i]]){

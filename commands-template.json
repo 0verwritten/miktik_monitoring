@@ -1,0 +1,9 @@
+{
+    "<command>":{
+        "multiple_objects": true,
+        "attributes": [
+            "<attribute to look for>",
+            "<attribute to look for>"
+        ]
+    }    
+}

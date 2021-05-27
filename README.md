@@ -18,6 +18,7 @@ TO DO:
 - [ ] prometheus integration
 - [x] encrypt user credentials
 - [x] uft8 converter error ( some characters appears in the end of the responce or just disapear ... )
+- [ ] Optimise responce parsing using custum types for each query
 
-
-// separated interactive console and main function
+Last changes:
+- json file to seek commands in automaticly

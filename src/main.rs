@@ -30,17 +30,19 @@ fn main(){
 
     let addrs = [
             SocketAddr::new("<in address>".parse().unwrap(), 8729),
+
         ];
     let login = "user1";
     let pass = "123";
 
-    let mut connections: Vec::<Connector> = Connector::new(&addrs, true, true).unwrap();
+    let mut connections: Vec::<Connector> = Connector::new(&addrs, false, true).unwrap();
 
     for i in 0..connections.len(){
         connections[i].login(login, pass, false, true).expect("Login error");
     }
     
-    interactive(connections);
+    connections[0].tell(&["/ip/address/print".to_string()].to_vec(), true);
+    // interactive(connections);
 
     println!("Session ended");
 }
