@@ -1,0 +1,14 @@
+{
+    "<command>":{
+        "_multiple_objects_comment": "use this parameter if there are multiple objects to look for",
+        "multiple_objects": true,
+        "_frequency_comment": "[days, hoursm minutes, seconds]",
+        "frequency": [0, 5, 0, 0],
+        "_last_time_comment": "date in seconds",
+        "last_time": 3333333333,
+        "attributes": [
+            "<attribute to look for>",
+            "<attribute to look for>"
+        ]
+    }    
+}

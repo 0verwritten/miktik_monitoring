@@ -1,0 +1,26 @@
+[
+    {
+        "command":"/ip/address/print",
+        "multiple_objects": true,
+        "frequency": "0d 5:0:0",
+        "last_time": 63809470000,
+        "name": "Address info",
+        "attributes": [
+            "network",
+            "comment"
+        ]
+    },
+    {
+        "command":"/ip/firewall/filter/print",
+        "multiple_objects": true,
+        "frequency": "0d 5:0:0",
+        "last_time": 63809470000,
+        "query": [
+            "name=garbage"
+        ],
+        "attributes": [
+            "network",
+            "comment"
+        ]
+    }    
+]

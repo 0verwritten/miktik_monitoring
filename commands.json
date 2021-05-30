@@ -1,10 +1,28 @@
-[
-    {
-        "command":"/ip/address\n?type=ether",
-        "multiple_objects": true,
-        "attributes": [
-                "address",
-                "interface"
-        ]
-    }
-]
+{
+    "interval": [0, 0, 5, 0],
+    "commands":[
+        {
+            "command":"/ip/address/print",
+            "multiple_objects": true,
+            "frequency": [0, 5, 0, 0],
+            "name": "Address info",
+            "attributes": [
+                    "network",
+                    "comment"
+            ]
+        },
+        {
+            "command":"/ip/firewall/filter/print",
+            "multiple_objects": true,
+            "frequency": [0, 5, 0, 0],
+            "name": "test",
+            "query": [
+                "name=garbage"
+            ],
+            "attributes": [
+                "chain",
+                "comment"
+            ]
+        }    
+    ]
+}

@@ -1,8 +1,10 @@
 pub mod mik_api{
     extern crate openssl;
     extern crate serde;
+    extern crate chrono;
 
-    use std::time::Duration;
+    use std::time::{Duration, SystemTime};
+    // use chrono::DateTime;
     use std::collections::HashMap;
     use core::str::from_utf8;
     use std::io::{Read, Write};
@@ -11,6 +13,7 @@ pub mod mik_api{
     use openssl::ssl;
     use openssl::ssl::{SslMethod, SslConnector, SslStream};
 
+    /// Mikrotik connector main struct
     pub struct Connector{
         stream: Option<TcpStream>,
         ssl_stream: Option<SslStream<TcpStream>>,
@@ -19,19 +22,32 @@ pub mod mik_api{
         password: Option<String>,
     }
 
+    /// Commans config deserealization parental struct
+    #[derive(serde::Serialize, serde::Deserialize, Debug)]
+    pub struct Commands{
+        interval: [u8; 4],
+        commands: Vec<Queries>
+    }
+
+    /// Commands config deserealization structure
     #[derive(serde::Serialize, serde::Deserialize, Debug)]
     pub struct Queries{
-        pub command: String,
-        pub multiple_objects: bool,
-        pub attributes: Vec<String>
+        query: Option<Vec<String>>,
+        attributes: Vec<String>,
+        multiple_objects: bool,
+        frequency: [u8; 4],
+        command: String,
+        name: String,
     }
 
     impl Connector{
+
+        /// Initialization of connection object
         pub fn new(addrs: &[std::net::SocketAddr], use_ssl: bool, verbose: bool) -> Result<Vec::<Connector>, String>{
             let mut connections = Vec::new();
             for x in addrs.iter(){
                 let stream = net::TcpStream::connect(x).unwrap();
-                if !use_ssl{
+                if !use_ssl{ // if ssl is disabled
                     connections.push(
                         Connector{
                             stream: Some(stream),
@@ -62,14 +78,18 @@ pub mod mik_api{
             Ok(connections)
         }
 
+        /// Logins into the routerboatd
         pub fn login(&mut self, username: &str, pwd: &str, overwrite: bool, verbose: bool) -> Result<(), String>{
             if self.username == None || overwrite == true { self.username = Some(String::from(username)); }
             if self.password == None || overwrite == true { self.password = Some(String::from(pwd)); }
-            self.tell(&["/login".to_string(), format!("=name={}", self.username.as_ref().unwrap()), format!("=password={}", self.password.as_ref().unwrap())].to_vec(), verbose).unwrap();
+            self.tell(&["/login".to_string(), format!("=name={}", self.username.as_ref().unwrap()), format!("=password={}", self.password.as_ref().unwrap())].to_vec(), verbose, None).unwrap();
             Ok(())
         }
         
-        pub fn tell(&mut self, lines: &Vec::<String>, verbose: bool) -> Result<String, String>{//sender: &mut [net::TcpStream]
+        /// Sends commands to routerboard after [Login] has been perforned
+        /// 
+        /// [Login]: login
+        pub fn tell(&mut self, lines: &Vec::<String>, verbose: bool, attributes: Option<&Vec<String>>) -> Result<String, String>{//sender: &mut [net::TcpStream]
             let mut text = Vec::<u8>::new();
             for l in lines{
                 for x in hexer(l.as_bytes(), false){
@@ -82,8 +102,7 @@ pub mod mik_api{
             
             let output = self.reader();
             if verbose == true{
-                // println!(">> {}", &output);
-                println!("{:?}", responce_decoder(&output[..]));
+                println!(">> {}", &output);
             }
             Ok(output)
 
@@ -95,6 +114,33 @@ pub mod mik_api{
             // }
         }
 
+        pub fn tell_get(&mut self, lines: &Vec::<String>, verbose: bool, attributes: Option<&Vec<String>>) -> Result<Vec<HashMap<String, String>>, String>{//sender: &mut [net::TcpStream]
+            let mut text = Vec::<u8>::new();
+            for l in lines{
+                for x in hexer(l.as_bytes(), false){
+                    text.push(x);
+                }
+            }
+            text.push(0);
+            if self.secured { (self.ssl_stream.as_mut().unwrap()).write(&text).unwrap(); } 
+            else            { self.stream.as_mut().unwrap().write(&text).unwrap(); }
+            
+            let output = self.reader();
+            let hash_res = responce_decoder(&output[..], attributes);
+            if verbose == true{
+                // println!(">> {}", &output);
+                println!("{:?}", hash_res);
+            }
+
+            match hash_res{
+                Some(t) => Ok(t),
+                None => Err(String::from("None hash result"))
+            }
+        }
+
+
+        /// Reads responce from the network stream after [Teller] send the request
+        /// [Teller]: tell
         fn reader(&mut self) -> String{ // net::TcpStream
             // let mut res = String::new();
             let mut res_bytes = Vec::<u8>::new();        
@@ -127,9 +173,29 @@ pub mod mik_api{
             bytes_to_str(&res_bytes)
             // res
         } 
+        
+        pub async fn queries_teller(&mut self, queries: Commands, verbosibility: bool) {
+            loop{
+
+                for command in &queries.commands{
+                    println!("{}", command.command);
+
+                    self.tell_get( &vec![ command.command.to_string() ], verbosibility, Some(&command.attributes) ).unwrap();
+                    
+                }
+
+                std::thread::sleep(date_array_to_duration(queries.interval));
+            }
+        }
     }
 
-    fn responce_decoder(responce: &str) -> Option::<Vec<HashMap::<String, String>>> { // temporary solution
+
+    fn date_array_to_duration(time: [u8; 4]) -> Duration {
+        Duration::new( (((( (time[0] as u64) * 24 )+ (time[1] as u64) * 60 )+ (time[2] as u64) * 60 ) + (time[3] as u64)) as u64, 0)
+    }
+
+    /// Responce formater
+    fn responce_decoder(responce: &str, attributes: Option<&Vec<String>>) -> Option::<Vec<HashMap::<String, String>>> { // temporary solution
         let mut res = Vec::<HashMap::<String, String>>::new();
 
         let mut landfill = responce.split("\n");
@@ -143,7 +209,6 @@ pub mod mik_api{
         }
 
         let mut hashpiece = HashMap::new();
-        let queries: Vec<Queries> = queries_reader("commands.json");
         for piece in landfill{
             {
                 if &piece[..] == "!re"{
@@ -151,12 +216,12 @@ pub mod mik_api{
                     hashpiece = HashMap::new();
                     continue;
                 }
-                if &piece[..3] == ".id"{
+                if piece.len() >= 3 && &piece[..3] == ".id"{
                     hashpiece.insert(String::from(&piece[1..3]), String::from(&piece[5..]));
                 }else if piece.contains("=") {
                     let mut key = piece.split("=");
                     let (key, value) = (key.nth(0).unwrap(), key.nth(0).unwrap());
-                    if queries[0].attributes.contains(&key.to_string()){
+                    if attributes?.contains(&key.to_string()){
                         hashpiece.insert(
                             String::from(key), 
                             String::from(value));
@@ -167,15 +232,18 @@ pub mod mik_api{
 
         Some(res)
     }
-    fn queries_reader(file_name: &str) -> Vec::<Queries>{
+
+    /// Reads commands.json file
+    pub fn queries_reader(file_name: &str) -> Commands{
         let mut file_data = String::new();
         let mut file = std::fs::File::open(file_name).unwrap();
         file.read_to_string(&mut file_data);
-        let file_data: Vec<Queries> = serde_json::from_str(&file_data).unwrap();
+        let file_data: Commands = serde_json::from_str(&file_data).unwrap();
 
         file_data
     }
         
+    /// Decodes responce to string
     fn bytes_to_str(bytes: &[u8]) -> String {
 
         let mut l = 0; // every word length
@@ -203,6 +271,7 @@ pub mod mik_api{
         res
     }
 
+    /// Converts dec base to hex
     fn dec_to_hec(mut value: usize) -> Vec::<u8>{
         let mut res = Vec::new();
         let too_high = value >= 268435456;
@@ -218,6 +287,7 @@ pub mod mik_api{
         res
     }
     
+    /// Converts dec array to hex array
     fn hexer(value: &[u8], add_last: bool) -> Vec::<u8>{
         let len = value.len();
         let mut res = Vec::<u8>::new();
