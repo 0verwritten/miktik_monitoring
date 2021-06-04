@@ -1,13 +1,10 @@
 extern crate async_std;
 
 use mik_api::mik_api::queries_reader;
-use core::str::from_utf8;
+use std::{ io, env, future, task };
 use mik_api::mik_api::Connector;
 use std::net::SocketAddr;
-use std::io;
-use std::env;
-use std::future;
-
+use core::str::from_utf8;
 
 fn interactive(mut connections: std::vec::Vec<mik_api::mik_api::Connector>){
     let mut lines = Vec::new();
@@ -29,14 +26,14 @@ fn interactive(mut connections: std::vec::Vec<mik_api::mik_api::Connector>){
             lines.push(line.to_string());
         }
     }
+    println!("Session ended");
 }
 
 #[async_std::main]
 async fn main(){
 
     let addrs = [
-            // SocketAddr::new("<in address>".parse().unwrap(), 8729),
-            SocketAddr::new("10.13.40.8".parse().unwrap(), 8728),
+            SocketAddr::new("<in address>".parse().unwrap(), 8729),
         ];
     let login = "user1";
     let pass = "123";
@@ -45,20 +42,15 @@ async fn main(){
     let connections_len = connections.len();
 
     for i in 0..connections.len(){
-        &connections[i].login(login, pass, false, true).expect("Login error");
+        connections[i].login(login, pass, false, true).expect("Login error");
         if i != connections_len - 1{
-            connections[i].queries_teller(queries_reader("commands.json"), true);
+            connections[i].queries_teller(queries_reader("commands.json"), false);
         }
     }
-    let mut  lst_progress = connections[connections_len-1].queries_teller(queries_reader("commands.json"), true);
-    
-    println!("{:?}", lst_progress.await);
 
-    // connections[0].tell(&["/ip/address/print".to_string()].to_vec(), true, None).unwrap();
-
-    // println!("{:#?}", queries_reader("commands.json"));
-
-    // interactive(connections);
-
-    // println!("Session ended");
+    let key = "INTERACT";
+    match env::var_os(key) {
+        Some(_) => interactive(connections),
+        None => { connections[connections_len-1].queries_teller(queries_reader("commands.json"), false).await; }
+    }
 }

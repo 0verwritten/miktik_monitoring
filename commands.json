@@ -5,24 +5,15 @@
             "command":"/ip/address/print",
             "multiple_objects": true,
             "frequency": [0, 5, 0, 0],
-            "name": "Address info",
+            "name": "Address_info",
             "attributes": [
                     "network",
-                    "comment"
-            ]
-        },
-        {
-            "command":"/ip/firewall/filter/print",
-            "multiple_objects": true,
-            "frequency": [0, 5, 0, 0],
-            "name": "test",
-            "query": [
-                "name=garbage"
+                    "comment",
+                    "address",
+                    "interface"
+
             ],
-            "attributes": [
-                "chain",
-                "comment"
-            ]
-        }    
+            "graph_targets": []
+        }  
     ]
 }

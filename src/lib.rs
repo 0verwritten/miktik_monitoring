@@ -2,6 +2,7 @@ pub mod mik_api{
     extern crate openssl;
     extern crate serde;
     extern crate chrono;
+    extern crate tiny_http;
 
     use std::time::{Duration, SystemTime};
     // use chrono::DateTime;
@@ -18,8 +19,13 @@ pub mod mik_api{
         stream: Option<TcpStream>,
         ssl_stream: Option<SslStream<TcpStream>>,
         secured: bool,
+        address: std::net::SocketAddr,
         username: Option<String>, // saves cridencials to restores session ( in development )
         password: Option<String>,
+    }
+    pub struct WebEnd<'a>{
+        port: u32,
+        data: &'a Vec::<HashMap<String, String>>
     }
 
     /// Commans config deserealization parental struct
@@ -32,6 +38,7 @@ pub mod mik_api{
     /// Commands config deserealization structure
     #[derive(serde::Serialize, serde::Deserialize, Debug)]
     pub struct Queries{
+        graph_targets: Option<Vec<String>>,
         query: Option<Vec<String>>,
         attributes: Vec<String>,
         multiple_objects: bool,
@@ -54,7 +61,8 @@ pub mod mik_api{
                             ssl_stream: None,
                             username: None,
                             password: None,
-                            secured: false
+                            secured: false,
+                            address: *x
                         }
                     );
                 }else{
@@ -67,7 +75,8 @@ pub mod mik_api{
                             ssl_stream: Some(connector.connect(&x.ip().to_string(), stream).unwrap()),
                             username: None,
                             password: None,
-                            secured: true
+                            secured: true,
+                            address: *x
                         }
                     );
                 }
@@ -105,16 +114,9 @@ pub mod mik_api{
                 println!(">> {}", &output);
             }
             Ok(output)
-
-
-            // for i in 0..sender.len(){
-            //     sender[i].write(&text).unwrap();
-            //     // std::thread::sleep_ms(1000);
-            //     println!(">> {}", reader(&mut self.stream));
-            // }
         }
 
-        pub fn tell_get(&mut self, lines: &Vec::<String>, verbose: bool, attributes: Option<&Vec<String>>) -> Result<Vec<HashMap<String, String>>, String>{//sender: &mut [net::TcpStream]
+        pub fn tell_get(&mut self, lines: &Vec::<String>, verbose: bool, query: &Queries, hash_container: &mut Vec<HashMap<String, String>>) -> Result<(), String>{//sender: &mut [net::TcpStream]
             let mut text = Vec::<u8>::new();
             for l in lines{
                 for x in hexer(l.as_bytes(), false){
@@ -126,14 +128,16 @@ pub mod mik_api{
             else            { self.stream.as_mut().unwrap().write(&text).unwrap(); }
             
             let output = self.reader();
-            let hash_res = responce_decoder(&output[..], attributes);
+            let hash_res = self.responce_decoder(&output[..], query);
             if verbose == true{
-                // println!(">> {}", &output);
-                println!("{:?}", hash_res);
+                match &hash_res{
+                    Some(val) => println!(">> {:#?}", val),
+                    None => println!("Nothing in responce")
+                }
             }
 
             match hash_res{
-                Some(t) => Ok(t),
+                Some(value) => { hash_container.push(value); return Ok(()); },
                 None => Err(String::from("None hash result"))
             }
         }
@@ -142,15 +146,11 @@ pub mod mik_api{
         /// Reads responce from the network stream after [Teller] send the request
         /// [Teller]: tell
         fn reader(&mut self) -> String{ // net::TcpStream
-            // let mut res = String::new();
             let mut res_bytes = Vec::<u8>::new();        
             let mut data = [0 as u8; 10]; // using 50 byte buffer
             if self.secured {
                 loop{ match self.ssl_stream.as_mut().unwrap().read(&mut data) {
                     Ok(size) => {
-                        // res += &(|| -> String { let mut res = String::new(); for value in 0..size {if data[value] == 0 { res+="\n"; } else if value !=0 && data[value - 1] == 0 { continue; } else { res += from_utf8(&[data[value]]).unwrap(); } } res })();
-                        // println!("{:?}", data);
-
                         (|| { for value in 0..size { res_bytes.push(data[value]); } })();
 
                         if size < data.len() { break; }
@@ -159,10 +159,6 @@ pub mod mik_api{
             }}} else { 
                 loop{ match self.stream.as_mut().unwrap().read(&mut data) {
                     Ok(size) => {
-                        // res += &(|| -> String { let mut res = String::new(); for value in 0..size {if data[value] == 0 { res+="\n"; } else if value !=0 && data[value - 1] == 0 { continue; } else { res += from_utf8(&[data[value]]).unwrap(); } } res })();
-                        // for value in 0..data.len() {if data[value] == 0 { res+="\n"; } else { res += from_utf8(&[data[value]]).unwrap(); } }
-                        // println!("{:?}", data);
-
                         (|| { for value in 0..size { res_bytes.push(data[value]); } })();
 
                         if size < data.len() { break; }
@@ -171,68 +167,115 @@ pub mod mik_api{
             }}}
             // println!("{:?}", res_bytes);
             bytes_to_str(&res_bytes)
-            // res
         } 
         
-        pub async fn queries_teller(&mut self, queries: Commands, verbosibility: bool) {
+        /// Executes commands from `commands.json` file + runs web server to be reserved by prometheus
+        // #[actix_web::main]
+        // async
+        pub async fn queries_teller(&mut self, queries: Commands, verbosibility: bool) -> Vec::<HashMap<String, String>> {
+            let mut metrics = Vec::<HashMap<String, String>>::new();    
+            let server = tiny_http::Server::http("localhost:7878").unwrap();
+
             loop{
+
+                let request = match server.recv() {
+                    Ok(rq) => { println!("{:?}", rq); rq },
+                    Err(e) => { println!("error: {}", e); break }
+                };
 
                 for command in &queries.commands{
                     println!("{}", command.command);
 
-                    self.tell_get( &vec![ command.command.to_string() ], verbosibility, Some(&command.attributes) ).unwrap();
+                    match self.tell_get( &vec![ command.command.to_string() ], verbosibility, command, &mut metrics ){
+                        Ok(data) => (),
+                        Err(err) => println!("{:?}", err)
+                    }
                     
                 }
 
-                std::thread::sleep(date_array_to_duration(queries.interval));
+                let mut res = "".to_owned();
+
+                for dicts in metrics{
+                    for (key, value) in dicts{
+                        res += &format!("{} {}\n", key, value);
+                    }
+                }
+
+                let response = tiny_http::Response::from_string(res);
+                let _ = request.respond(response);
+                metrics = Vec::<HashMap<String, String>>::new();
+
+                // std::thread::sleep(date_array_to_duration(queries.interval)); // not used because prometheus will do it itself
             }
+            return metrics;
+        }
+
+        /// Responce formater
+        // fn responce_decoder(&mut self, responce: &str, attributes: Option<&Vec<String>>, key_values: &Vec<String>) -> Option::<Vec<HashMap::<String, String>>> { // temporary solution
+        fn responce_decoder(&mut self, responce: &str, query: &Queries) -> Option::<HashMap::<String, String>> { // temporary solution
+            let mut res         = HashMap::<String, String>::new();
+            let mut landfill    = responce.split("\n");
+            let     fst_value   = landfill.nth(0).unwrap();
+
+            if  &fst_value.len() >= &5usize && &fst_value[..5] == "!done"{
+                return None;
+            }if &fst_value.len() >= &5usize && &fst_value[..5] == "!trap" || &fst_value.len() >= &6usize && &fst_value[..6] == "!fatal" {
+                panic!(format!("Here is an error during parsing because of invalid responce {:?}", landfill));
+            }
+
+            // let mut hashpiece = HashMap::new();
+            let mut res_key         = String::from(format!("{}{{routerboard_address=\"{}\"", query.name, self.address.to_string()));
+            let mut res_values       = Vec::<String>::new();
+            for piece in landfill{
+                {
+                    if &piece[..] == "!re"{
+                        if res_values.len() == 0{
+                            res.insert(
+                                res_key.to_owned()+"}",
+                                0.to_string()
+                            );
+                        }else{
+                            for value in &res_values{
+                                res.insert(
+                                    res_key.to_owned()+"}",
+                                    value.to_string() 
+                                );
+                            }
+                        }
+                        res_key     = String::from(format!("{}{{routerboard_address=\"{}\"", query.name, self.address.to_string()));
+                        res_values  = Vec::<String>::new();
+                        // res.push(hashpiece);
+                        // hashpiece = HashMap::new();
+                        continue;
+                    }
+                    else if piece.len() >= 3 && &piece[..3] == ".id"{ // not quite sure it is valuable
+                        
+                        // res.insert(String::from(&piece[1..3]), String::from(&piece[5..]));
+                        // hashpiece.insert(String::from(&piece[1..3]), String::from(&piece[5..]));
+                    }else if piece.contains("=") {
+                        let mut key = piece.split("=");
+                        let (key, value) = (key.nth(0).unwrap(), key.nth(0).unwrap());
+                        if query.graph_targets.as_ref()?.contains(&key.to_string()){
+                            res_values.push(String::from(value));
+                        }
+                        if query.attributes.contains(&key.to_string()){
+                            res_key.push_str(&format!(", {}=\"{}\"", key, value));
+
+                            // res.insert(
+                            //     String::from(key), 
+                            //     String::from(value));
+                        }
+                    }
+                }
+            }
+
+            Some(res)
         }
     }
-
 
     fn date_array_to_duration(time: [u8; 4]) -> Duration {
         Duration::new( (((( (time[0] as u64) * 24 )+ (time[1] as u64) * 60 )+ (time[2] as u64) * 60 ) + (time[3] as u64)) as u64, 0)
     }
-
-    /// Responce formater
-    fn responce_decoder(responce: &str, attributes: Option<&Vec<String>>) -> Option::<Vec<HashMap::<String, String>>> { // temporary solution
-        let mut res = Vec::<HashMap::<String, String>>::new();
-
-        let mut landfill = responce.split("\n");
-
-        let fst_value = landfill.nth(0).unwrap();
-
-        if  &fst_value.len() >= &5usize && &fst_value[..5] == "!done"{
-            return None;
-        }if &fst_value.len() >= &5usize && &fst_value[..5] == "!trap" || &fst_value.len() >= &6usize && &fst_value[..6] == "!fatal" {
-            panic!(format!("Here is an error during parsing because of invalid responce {:?}", landfill));
-        }
-
-        let mut hashpiece = HashMap::new();
-        for piece in landfill{
-            {
-                if &piece[..] == "!re"{
-                    res.push(hashpiece);
-                    hashpiece = HashMap::new();
-                    continue;
-                }
-                if piece.len() >= 3 && &piece[..3] == ".id"{
-                    hashpiece.insert(String::from(&piece[1..3]), String::from(&piece[5..]));
-                }else if piece.contains("=") {
-                    let mut key = piece.split("=");
-                    let (key, value) = (key.nth(0).unwrap(), key.nth(0).unwrap());
-                    if attributes?.contains(&key.to_string()){
-                        hashpiece.insert(
-                            String::from(key), 
-                            String::from(value));
-                    }
-                }
-            }
-        }
-
-        Some(res)
-    }
-
     /// Reads commands.json file
     pub fn queries_reader(file_name: &str) -> Commands{
         let mut file_data = String::new();
@@ -241,8 +284,7 @@ pub mod mik_api{
         let file_data: Commands = serde_json::from_str(&file_data).unwrap();
 
         file_data
-    }
-        
+    }   
     /// Decodes responce to string
     fn bytes_to_str(bytes: &[u8]) -> String {
 
@@ -270,7 +312,6 @@ pub mod mik_api{
 
         res
     }
-
     /// Converts dec base to hex
     fn dec_to_hec(mut value: usize) -> Vec::<u8>{
         let mut res = Vec::new();
@@ -286,7 +327,6 @@ pub mod mik_api{
         }
         res
     }
-    
     /// Converts dec array to hex array
     fn hexer(value: &[u8], add_last: bool) -> Vec::<u8>{
         let len = value.len();
@@ -307,5 +347,6 @@ pub mod mik_api{
             res.push(0);
         }
         res
-    }   
+    } 
+
 }
