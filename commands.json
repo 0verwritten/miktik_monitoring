@@ -5,7 +5,7 @@
             "command":"/ip/address/print",
             "multiple_objects": true,
             "frequency": [0, 5, 0, 0],
-            "name": "Address_info",
+            "name": "address_info",
             "attributes": [
                     "network",
                     "comment",
@@ -14,6 +14,20 @@
 
             ],
             "graph_targets": []
-        }  
+        },
+        {
+            "command":"/ipv6/address/print",
+            "multiple_objects": true,
+            "frequency": [0, 5, 0, 0],
+            "name": "address_v6_info",
+            "attributes": [
+                    "network",
+                    "comment",
+                    "address",
+                    "interface"
+
+            ],
+            "graph_targets": []
+        }
     ]
 }

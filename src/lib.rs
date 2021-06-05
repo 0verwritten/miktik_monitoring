@@ -4,12 +4,13 @@ pub mod mik_api{
     extern crate chrono;
     extern crate tiny_http;
 
-    use std::time::{Duration, SystemTime};
+    use std::time::{Duration, SystemTime, Instant};
     // use chrono::DateTime;
     use std::collections::HashMap;
     use core::str::from_utf8;
     use std::io::{Read, Write};
     use std::{net};
+    use std::net::IpAddr;
     use std::net::TcpStream;
     use openssl::ssl;
     use openssl::ssl::{SslMethod, SslConnector, SslStream};
@@ -87,62 +88,6 @@ pub mod mik_api{
             Ok(connections)
         }
 
-        /// Logins into the routerboatd
-        pub fn login(&mut self, username: &str, pwd: &str, overwrite: bool, verbose: bool) -> Result<(), String>{
-            if self.username == None || overwrite == true { self.username = Some(String::from(username)); }
-            if self.password == None || overwrite == true { self.password = Some(String::from(pwd)); }
-            self.tell(&["/login".to_string(), format!("=name={}", self.username.as_ref().unwrap()), format!("=password={}", self.password.as_ref().unwrap())].to_vec(), verbose, None).unwrap();
-            Ok(())
-        }
-        
-        /// Sends commands to routerboard after [Login] has been perforned
-        /// 
-        /// [Login]: login
-        pub fn tell(&mut self, lines: &Vec::<String>, verbose: bool, attributes: Option<&Vec<String>>) -> Result<String, String>{//sender: &mut [net::TcpStream]
-            let mut text = Vec::<u8>::new();
-            for l in lines{
-                for x in hexer(l.as_bytes(), false){
-                    text.push(x);
-                }
-            }
-            text.push(0);
-            if self.secured { (self.ssl_stream.as_mut().unwrap()).write(&text).unwrap(); } 
-            else            { self.stream.as_mut().unwrap().write(&text).unwrap(); }
-            
-            let output = self.reader();
-            if verbose == true{
-                println!(">> {}", &output);
-            }
-            Ok(output)
-        }
-
-        pub fn tell_get(&mut self, lines: &Vec::<String>, verbose: bool, query: &Queries, hash_container: &mut Vec<HashMap<String, String>>) -> Result<(), String>{//sender: &mut [net::TcpStream]
-            let mut text = Vec::<u8>::new();
-            for l in lines{
-                for x in hexer(l.as_bytes(), false){
-                    text.push(x);
-                }
-            }
-            text.push(0);
-            if self.secured { (self.ssl_stream.as_mut().unwrap()).write(&text).unwrap(); } 
-            else            { self.stream.as_mut().unwrap().write(&text).unwrap(); }
-            
-            let output = self.reader();
-            let hash_res = self.responce_decoder(&output[..], query);
-            if verbose == true{
-                match &hash_res{
-                    Some(val) => println!(">> {:#?}", val),
-                    None => println!("Nothing in responce")
-                }
-            }
-
-            match hash_res{
-                Some(value) => { hash_container.push(value); return Ok(()); },
-                None => Err(String::from("None hash result"))
-            }
-        }
-
-
         /// Reads responce from the network stream after [Teller] send the request
         /// [Teller]: tell
         fn reader(&mut self) -> String{ // net::TcpStream
@@ -155,7 +100,7 @@ pub mod mik_api{
 
                         if size < data.len() { break; }
                     },
-                    Err(_) => { panic!(format!("An error occurred, terminating connection")); }
+                    Err(_) => { panic!("An error occurred, terminating connection"); }
             }}} else { 
                 loop{ match self.stream.as_mut().unwrap().read(&mut data) {
                     Ok(size) => {
@@ -163,53 +108,12 @@ pub mod mik_api{
 
                         if size < data.len() { break; }
                     },
-                    Err(_) => { panic!(format!("An error occurred, terminating connection")); }
+                    Err(_) => { panic!("An error occurred, terminating connection"); }
             }}}
             // println!("{:?}", res_bytes);
             bytes_to_str(&res_bytes)
-        } 
-        
-        /// Executes commands from `commands.json` file + runs web server to be reserved by prometheus
-        // #[actix_web::main]
-        // async
-        pub async fn queries_teller(&mut self, queries: Commands, verbosibility: bool) -> Vec::<HashMap<String, String>> {
-            let mut metrics = Vec::<HashMap<String, String>>::new();    
-            let server = tiny_http::Server::http("localhost:7878").unwrap();
-
-            loop{
-
-                let request = match server.recv() {
-                    Ok(rq) => { println!("{:?}", rq); rq },
-                    Err(e) => { println!("error: {}", e); break }
-                };
-
-                for command in &queries.commands{
-                    println!("{}", command.command);
-
-                    match self.tell_get( &vec![ command.command.to_string() ], verbosibility, command, &mut metrics ){
-                        Ok(data) => (),
-                        Err(err) => println!("{:?}", err)
-                    }
-                    
-                }
-
-                let mut res = "".to_owned();
-
-                for dicts in metrics{
-                    for (key, value) in dicts{
-                        res += &format!("{} {}\n", key, value);
-                    }
-                }
-
-                let response = tiny_http::Response::from_string(res);
-                let _ = request.respond(response);
-                metrics = Vec::<HashMap<String, String>>::new();
-
-                // std::thread::sleep(date_array_to_duration(queries.interval)); // not used because prometheus will do it itself
-            }
-            return metrics;
         }
-
+        
         /// Responce formater
         // fn responce_decoder(&mut self, responce: &str, attributes: Option<&Vec<String>>, key_values: &Vec<String>) -> Option::<Vec<HashMap::<String, String>>> { // temporary solution
         fn responce_decoder(&mut self, responce: &str, query: &Queries) -> Option::<HashMap::<String, String>> { // temporary solution
@@ -220,11 +124,11 @@ pub mod mik_api{
             if  &fst_value.len() >= &5usize && &fst_value[..5] == "!done"{
                 return None;
             }if &fst_value.len() >= &5usize && &fst_value[..5] == "!trap" || &fst_value.len() >= &6usize && &fst_value[..6] == "!fatal" {
-                panic!(format!("Here is an error during parsing because of invalid responce {:?}", landfill));
+                panic!("Here is an error during parsing because of invalid responce {:?}", landfill);
             }
 
             // let mut hashpiece = HashMap::new();
-            let mut res_key         = String::from(format!("{}{{routerboard_address=\"{}\"", query.name, self.address.to_string()));
+            let mut res_key          = String::from(format!("{}{{routerboard_address=\"{}\"", query.name, self.address.to_string()));
             let mut res_values       = Vec::<String>::new();
             for piece in landfill{
                 {
@@ -270,21 +174,159 @@ pub mod mik_api{
             }
 
             Some(res)
+        } 
+
+        /// Logins into the routerboatd
+        pub fn login(&mut self, username: &str, pwd: &str, overwrite: bool, verbose: bool) -> Result<(), String>{
+            if self.username == None || overwrite == true { self.username = Some(String::from(username)); }
+            if self.password == None || overwrite == true { self.password = Some(String::from(pwd)); }
+            self.tell(&["/login".to_string(), format!("=name={}", self.username.as_ref().unwrap()), format!("=password={}", self.password.as_ref().unwrap())].to_vec(), verbose, None).unwrap();
+            Ok(())
+        }
+        
+        /// Sends commands to routerboard after [Login] has been perforned
+        /// 
+        /// [Login]: login
+        pub fn tell(&mut self, lines: &Vec::<String>, verbose: bool, attributes: Option<&Vec<String>>) -> Result<String, String>{//sender: &mut [net::TcpStream]
+            let mut text = Vec::<u8>::new();
+            for l in lines{
+                for x in hexer(l.as_bytes(), false){
+                    text.push(x);
+                }
+            }
+            text.push(0);
+            if self.secured { (self.ssl_stream.as_mut().unwrap()).write(&text).unwrap(); } 
+            else            { self.stream.as_mut().unwrap().write(&text).unwrap(); }
+            
+            let output = self.reader();
+            if verbose == true{
+                println!(">> {}", &output);
+            }
+            Ok(output)
+        }
+
+        /// Sends commands from list to routerboard after [Login] has been perforned
+        /// 
+        /// [Login]: login
+        pub fn tell_get(&mut self, lines: &Vec::<String>, verbose: bool, query: &Queries, hash_container: &mut Vec<HashMap<String, String>>) -> Result<(), String>{//sender: &mut [net::TcpStream]
+            let mut text = Vec::<u8>::new();
+            for l in lines{
+                for x in hexer(l.as_bytes(), false){
+                    text.push(x);
+                }
+            }
+            text.push(0);
+            if self.secured { (self.ssl_stream.as_mut().unwrap()).write(&text).unwrap(); } 
+            else            { self.stream.as_mut().unwrap().write(&text).unwrap(); }
+            
+            let output = self.reader();
+            let hash_res = self.responce_decoder(&output[..], query);
+            if verbose == true{
+                match &hash_res{
+                    Some(val) => println!(">> {:#?}", val),
+                    None => println!("Nothing in responce")
+                }
+            }
+
+            match hash_res{
+                Some(value) => { hash_container.push(value); return Ok(()); },
+                None => Err(String::from("None hash result"))
+            }
+        }
+        
+        /// Executes commands from list runs web server with metrics to be reserved by prometheus
+        // pub async fn queries_teller(&mut self, queries: Commands, verbosibility: bool, uri: String, port: u32, ) -> Vec::<HashMap<String, String>> {
+        pub async fn queries_teller(connections: &mut Vec::<Connector>, queries_file: String, verbosibility: bool, uri: String, port: u32, ) -> Vec::<HashMap<String, String>> {
+            let mut metrics = Vec::<HashMap<String, String>>::new();    
+            let server = tiny_http::Server::http(format!("{}:{}", uri, port)).unwrap();
+            let mut queries = queries_reader(&queries_file);
+
+            loop{
+
+                let request = match server.recv() {
+                    Ok(rq) => { /* println!("{:?}", rq); */ rq },
+                    Err(e) => { println!("error: {}", e); break }
+                };
+
+                match request.url() {
+                    "/metrics" => {
+                        println!("{:?}:\twent to metrics page", request);
+
+                        for connection in connections.iter_mut(){
+                            for command in &queries.commands{
+                                println!("{}", command.command);
+            
+                                match connection.tell_get( &vec![ command.command.to_string() ], verbosibility, command, &mut metrics ){
+                                    Ok(_) => (),
+                                    Err(err) => println!("{:?}", err)
+                                }
+                                
+                            }
+                        }
+        
+                        let mut res = "".to_owned();
+        
+                        for dicts in metrics{
+                            for (key, value) in dicts{
+                                res += &format!("{} {}\n", key, value);
+                            }
+                        }
+        
+                        let response = tiny_http::Response::from_string(res);
+                        let _ = request.respond(response);
+                        metrics = Vec::<HashMap<String, String>>::new();
+                    },
+                    "/" => { 
+                        println!("{:?}: console home is here", request);
+                        match request.respond(tiny_http::Response::from_file(std::fs::File::open("./templates/index.html").unwrap())){
+                            Ok(_) => (),
+                            Err(e) => println!("Error happened: {}", e)
+                        }
+                    },
+                    "/imgs/gears.gif" => {
+                        println!("{:?}:\tgear gif file is here", request);
+                        match request.respond(tiny_http::Response::from_file(std::fs::File::open("./images/gears.gif").unwrap())){
+                            Ok(_) => (),
+                            Err(e) => println!("Error happened: {}", e)
+                        }
+                    },
+                    "/config/update" => {
+                        println!("{:?}:\tupdating config", request);
+                        queries = queries_reader(&queries_file);
+                        match request.respond(tiny_http::Response::from_file(std::fs::File::open("./templates/reload_config.html").unwrap())){
+                            Ok(_) => (),
+                            Err(e) => println!("Error happened: {}", e)
+                        }
+                    }
+                    _   => {
+                        println!("{:?}", request);
+                    }
+                }
+
+                // std::thread::sleep(date_array_to_duration(queries.interval)); // not used because prometheus will do it itself
+            }
+            return metrics;
         }
     }
 
+    /// Converts custum 4 elements date array to duration
     fn date_array_to_duration(time: [u8; 4]) -> Duration {
         Duration::new( (((( (time[0] as u64) * 24 )+ (time[1] as u64) * 60 )+ (time[2] as u64) * 60 ) + (time[3] as u64)) as u64, 0)
     }
-    /// Reads commands.json file
+
+    /// Reads commands file and returns list
     pub fn queries_reader(file_name: &str) -> Commands{
         let mut file_data = String::new();
         let mut file = std::fs::File::open(file_name).unwrap();
-        file.read_to_string(&mut file_data);
+        match file.read_to_string(&mut file_data){
+            Ok(_) => (),
+            Err(_) => println!("Error in queries_reader while I was reading given file")
+        }
         let file_data: Commands = serde_json::from_str(&file_data).unwrap();
 
         file_data
-    }   
+    }  
+
     /// Decodes responce to string
     fn bytes_to_str(bytes: &[u8]) -> String {
 
@@ -312,7 +354,7 @@ pub mod mik_api{
 
         res
     }
-    /// Converts dec base to hex
+    /// Converts dec base to hex and adds length in the beginning as mikrotik api want
     fn dec_to_hec(mut value: usize) -> Vec::<u8>{
         let mut res = Vec::new();
         let too_high = value >= 268435456;
