@@ -43,8 +43,7 @@ async fn main(){
     }
 
     let addrs = [
-            // SocketAddr::new("<in address>".parse().unwrap(), 8729),
-            SocketAddr::new("10.13.40.8".parse().unwrap(), 8729),
+            SocketAddr::new("<in address>".parse().unwrap(), 8729),
         ];
     let login = "user1";
     let pass = "123";
