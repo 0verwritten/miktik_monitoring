@@ -1,10 +1,8 @@
 {
-    "interval": [0, 0, 5, 0],
     "commands":[
         {
             "command":"/ip/address/print",
             "multiple_objects": true,
-            "frequency": [0, 5, 0, 0],
             "name": "address_info",
             "attributes": [
                     "network",
@@ -18,7 +16,6 @@
         {
             "command":"/ipv6/address/print",
             "multiple_objects": true,
-            "frequency": [0, 5, 0, 0],
             "name": "address_v6_info",
             "attributes": [
                     "network",

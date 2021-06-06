@@ -9,6 +9,7 @@ pub mod mik_api{
     use std::collections::HashMap;
     use core::str::from_utf8;
     use std::io::{Read, Write};
+    use std::fs::File;
     use std::{net};
     use std::net::IpAddr;
     use std::net::TcpStream;
@@ -24,15 +25,11 @@ pub mod mik_api{
         username: Option<String>, // saves cridencials to restores session ( in development )
         password: Option<String>,
     }
-    pub struct WebEnd<'a>{
-        port: u32,
-        data: &'a Vec::<HashMap<String, String>>
-    }
 
     /// Commans config deserealization parental struct
     #[derive(serde::Serialize, serde::Deserialize, Debug)]
     pub struct Commands{
-        interval: [u8; 4],
+        // interval: [u8; 4],
         commands: Vec<Queries>
     }
 
@@ -43,49 +40,72 @@ pub mod mik_api{
         query: Option<Vec<String>>,
         attributes: Vec<String>,
         multiple_objects: bool,
-        frequency: [u8; 4],
+        // frequency: [u8; 4],
         command: String,
         name: String,
+    }
+
+    /// Struct that contains user credentials
+    #[derive(serde::Serialize, serde::Deserialize, Debug)]
+    pub struct Identity{
+        name: String,
+        uri: String,
+        use_ssl: bool,
+        username: String,
+        password: String,
+        cert: Option<String>, // cerification location of there is one
     }
 
     impl Connector{
 
         /// Initialization of connection object
-        pub fn new(addrs: &[std::net::SocketAddr], use_ssl: bool, verbose: bool) -> Result<Vec::<Connector>, String>{
-            let mut connections = Vec::new();
-            for x in addrs.iter(){
-                let stream = net::TcpStream::connect(x).unwrap();
-                if !use_ssl{ // if ssl is disabled
-                    connections.push(
-                        Connector{
-                            stream: Some(stream),
-                            ssl_stream: None,
-                            username: None,
-                            password: None,
-                            secured: false,
-                            address: *x
-                        }
-                    );
-                }else{
-                    let mut connector = ssl::SslConnector::builder(SslMethod::tls_client()).unwrap();
-                    connector.set_verify(ssl::SslVerifyMode::NONE); // to make ssl verification !!!!! ( temporary solution )
-                    let connector = connector.build();
-                    connections.push(
-                        Connector{
-                            stream: None,
-                            ssl_stream: Some(connector.connect(&x.ip().to_string(), stream).unwrap()),
-                            username: None,
-                            password: None,
-                            secured: true,
-                            address: *x
-                        }
-                    );
-                }
-                if verbose{
-                    println!("Connected to {}", x);
-                }
+        pub fn new(addr: std::net::SocketAddr, use_ssl: bool, verbose: bool) -> Result<Connector, String>{
+            let connection;
+            let stream = net::TcpStream::connect(addr).unwrap();
+            if !use_ssl{ // if ssl is disabled
+                connection = Connector{
+                        stream: Some(stream),
+                        ssl_stream: None,
+                        username: None,
+                        password: None,
+                        secured: false,
+                        address: addr
+                    };
+            }else{
+                let mut connector = ssl::SslConnector::builder(SslMethod::tls_client()).unwrap();
+                connector.set_verify(ssl::SslVerifyMode::NONE); // to make ssl verification !!!!! ( temporary solution )
+                let connector = connector.build();
+                connection = Connector{
+                        stream: None,
+                        ssl_stream: Some(connector.connect(&addr.ip().to_string(), stream).unwrap()),
+                        username: None,
+                        password: None,
+                        secured: true,
+                        address: addr
+                    };
             }
-            Ok(connections)
+            if verbose{
+                println!("Connected to {}", addr);
+            }
+            Ok(connection)
+        }
+
+
+        /// Creates connactions using `credentials.json` file and at the same time logins them
+        pub fn initial(file: String, save_credentials: bool, verbose: bool) -> Result<Vec::<Connector>, String>{
+            let connections = Vec::new();
+            let data: Vec::<Identity> = type_reader(&file);
+
+            for item in &data{
+                let mut connection = Connector::new( item.uri.parse().unwrap(), item.use_ssl, verbose ).unwrap();
+                match connection.login(&item.username, &item.password, save_credentials, verbose){
+                    Ok(_) => (),
+                    Err(err) => println!("Error on logining {} one. Error name: \"{}\"", item.name, err)
+                }
+                
+            }
+
+            return Ok(connections);
         }
 
         /// Reads responce from the network stream after [Teller] send the request
@@ -174,7 +194,7 @@ pub mod mik_api{
             }
 
             Some(res)
-        } 
+        }
 
         /// Logins into the routerboatd
         pub fn login(&mut self, username: &str, pwd: &str, overwrite: bool, verbose: bool) -> Result<(), String>{
@@ -239,7 +259,7 @@ pub mod mik_api{
         pub async fn queries_teller(connections: &mut Vec::<Connector>, queries_file: String, verbosibility: bool, uri: String, port: u32, ) -> Vec::<HashMap<String, String>> {
             let mut metrics = Vec::<HashMap<String, String>>::new();    
             let server = tiny_http::Server::http(format!("{}:{}", uri, port)).unwrap();
-            let mut queries = queries_reader(&queries_file);
+            let mut queries: Commands = type_reader(&queries_file);
 
             loop{
 
@@ -285,14 +305,14 @@ pub mod mik_api{
                     },
                     "/imgs/gears.gif" => {
                         println!("{:?}:\tgear gif file is here", request);
-                        match request.respond(tiny_http::Response::from_file(std::fs::File::open("./images/gears.gif").unwrap())){
+                        match request.respond(tiny_http::Response::from_file(std::fs::File::open("./templates/images/gears.gif").unwrap())){
                             Ok(_) => (),
                             Err(e) => println!("Error happened: {}", e)
                         }
                     },
                     "/config/update" => {
                         println!("{:?}:\tupdating config", request);
-                        queries = queries_reader(&queries_file);
+                        queries = type_reader(&queries_file);
                         match request.respond(tiny_http::Response::from_file(std::fs::File::open("./templates/reload_config.html").unwrap())){
                             Ok(_) => (),
                             Err(e) => println!("Error happened: {}", e)
@@ -314,18 +334,12 @@ pub mod mik_api{
         Duration::new( (((( (time[0] as u64) * 24 )+ (time[1] as u64) * 60 )+ (time[2] as u64) * 60 ) + (time[3] as u64)) as u64, 0)
     }
 
-    /// Reads commands file and returns list
-    pub fn queries_reader(file_name: &str) -> Commands{
-        let mut file_data = String::new();
-        let mut file = std::fs::File::open(file_name).unwrap();
-        match file.read_to_string(&mut file_data){
-            Ok(_) => (),
-            Err(_) => println!("Error in queries_reader while I was reading given file")
-        }
-        let file_data: Commands = serde_json::from_str(&file_data).unwrap();
-
-        file_data
-    }  
+    /// Reads data file and returns result
+    pub fn type_reader<T>(file_name: &str) -> T where T: for<'de> serde::Deserialize<'de> {
+        let file = std::fs::File::open(file_name).unwrap();
+        let file_: T = serde_json::from_reader(file).unwrap();
+        return file_;
+    }
 
     /// Decodes responce to string
     fn bytes_to_str(bytes: &[u8]) -> String {

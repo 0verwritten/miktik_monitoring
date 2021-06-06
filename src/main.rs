@@ -1,6 +1,6 @@
 extern crate async_std;
 
-use mik_api::mik_api::queries_reader;
+use mik_api::mik_api::type_reader;
 use std::{ io, env, future, task };
 use mik_api::mik_api::Connector;
 use std::net::SocketAddr;
@@ -42,22 +42,12 @@ async fn main(){
         return;
     }
 
-    let addrs = [
-            SocketAddr::new("<in address>".parse().unwrap(), 8729),
-        ];
-    let login = "user1";
-    let pass = "123";
-
-    let mut connections: Vec::<Connector> = Connector::new(&addrs, true, true).unwrap();
-    let connections_len = connections.len();
-
-    for i in 0..connections.len(){
-        connections[i].login(login, pass, false, true).expect("Login error");
-    }
+    let mut connections = Connector::initial( String::from("./config/credentials.json"), true, true ).unwrap();
 
     if env::args().filter( |x| {x == "-i"} ).count() > 0 {
         interactive(connections);
     }else{
-        Connector::queries_teller(&mut connections, "commands.json".to_string(), false, "localhost".to_string(), 7878).await;
+        println!("Starting listenong on: http://localhost:7878");
+        Connector::queries_teller(&mut connections, "./config/commands.json".to_string(), false, "localhost".to_string(), 7878).await;
     }
 }
