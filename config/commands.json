@@ -1,6 +1,28 @@
 {
     "commands":[
         {
+            "command":"/system/identity/print",
+            "multiple_objects":false,
+            "name": "identity"
+        },
+        {
+            "command": "/system/resource/print",
+            "multiple_objects": false,
+            "name": "router_status",
+            "graph_targets": [
+                "cpu-load"
+            ]
+        },
+        {
+            "command": "/system/resource/print",
+            "multiple_objects": false,
+            "name": "cpu_load",
+            "attributes": [],
+            "graph_targets": [
+                "cpu-load"
+            ]
+        },
+        {
             "command":"/ip/address/print",
             "multiple_objects": true,
             "name": "address_info",
@@ -16,15 +38,25 @@
         {
             "command":"/ipv6/address/print",
             "multiple_objects": true,
-            "name": "address_v6_info",
+            "name": "address_info",
             "attributes": [
                     "network",
                     "comment",
                     "address",
                     "interface"
 
-            ],
-            "graph_targets": []
+            ]
+        },
+        {
+            "command":"/ip/dhcp-server/lease/print",
+            "multiple_objects": true,
+            "name": "dhcp_leases",
+            "attributes": [
+                "address",
+                "mac-address",
+                "host-name",
+                "comment"
+            ]
         }
     ]
 }

@@ -17,6 +17,7 @@ pub mod mik_api{
     use openssl::ssl::{SslMethod, SslConnector, SslStream};
 
     /// Mikrotik connector main struct
+    #[derive(Debug)]
     pub struct Connector{
         stream: Option<TcpStream>,
         ssl_stream: Option<SslStream<TcpStream>>,
@@ -38,8 +39,9 @@ pub mod mik_api{
     pub struct Queries{
         graph_targets: Option<Vec<String>>,
         query: Option<Vec<String>>,
-        attributes: Vec<String>,
-        multiple_objects: bool,
+        separator: Option<String>,
+        attributes: Option<Vec<String>>,
+        // multiple_objects: bool,
         // frequency: [u8; 4],
         command: String,
         name: String,
@@ -93,7 +95,7 @@ pub mod mik_api{
 
         /// Creates connactions using `credentials.json` file and at the same time logins them
         pub fn initial(file: String, save_credentials: bool, verbose: bool) -> Result<Vec::<Connector>, String>{
-            let connections = Vec::new();
+            let mut connections = Vec::new();
             let data: Vec::<Identity> = type_reader(&file);
 
             for item in &data{
@@ -102,7 +104,7 @@ pub mod mik_api{
                     Ok(_) => (),
                     Err(err) => println!("Error on logining {} one. Error name: \"{}\"", item.name, err)
                 }
-                
+                connections.push(connection);
             }
 
             return Ok(connections);
@@ -112,39 +114,48 @@ pub mod mik_api{
         /// [Teller]: tell
         fn reader(&mut self) -> String{ // net::TcpStream
             let mut res_bytes = Vec::<u8>::new();        
-            let mut data = [0 as u8; 10]; // using 50 byte buffer
+            let mut data = [0 as u8; 1000]; // using 50 byte buffer
+            
             if self.secured {
-                loop{ match self.ssl_stream.as_mut().unwrap().read(&mut data) {
-                    Ok(size) => {
-                        (|| { for value in 0..size { res_bytes.push(data[value]); } })();
+                loop{
+                    match self.ssl_stream.as_mut().unwrap().read(&mut data) {
+                        Ok(size) => {
+                            for value in 0..size { res_bytes.push(data[value]); };
+                            
+                            if data[ size - 7..size] == [ 5, 33, 100, 111, 110, 101, 0 ] { break; } // '!done ' sign means end of sentence
+                        },
+                        Err(_) => { panic!("An error occurred, terminating connection"); }
+                        }
 
-                        if size < data.len() { break; }
+                }
+            } else { 
+                // self.stream.as_mut().unwrap().set_read_timeout(Some(std::time::Duration::new(0, 50)));
+                loop{
+                    match self.stream.as_mut().unwrap().read(&mut data) {
+                    Ok(size) => {
+                        for value in 0..size { res_bytes.push(data[value]); };
+
+                        if data[ size - 7..size] == [ 5, 33, 100, 111, 110, 101, 0 ] { break; } // '!done ' sign means end of sentence
                     },
                     Err(_) => { panic!("An error occurred, terminating connection"); }
-            }}} else { 
-                loop{ match self.stream.as_mut().unwrap().read(&mut data) {
-                    Ok(size) => {
-                        (|| { for value in 0..size { res_bytes.push(data[value]); } })();
-
-                        if size < data.len() { break; }
-                    },
-                    Err(_) => { panic!("An error occurred, terminating connection"); }
-            }}}
+                    }
+            }}
             // println!("{:?}", res_bytes);
             bytes_to_str(&res_bytes)
         }
         
         /// Responce formater
         // fn responce_decoder(&mut self, responce: &str, attributes: Option<&Vec<String>>, key_values: &Vec<String>) -> Option::<Vec<HashMap::<String, String>>> { // temporary solution
-        fn responce_decoder(&mut self, responce: &str, query: &Queries) -> Option::<HashMap::<String, String>> { // temporary solution
+        fn responce_decoder(&mut self, responce: &str, query: &Queries) -> Result::<HashMap::<String, String>, String> { // temporary solution
             let mut res         = HashMap::<String, String>::new();
             let mut landfill    = responce.split("\n");
             let     fst_value   = landfill.nth(0).unwrap();
 
             if  &fst_value.len() >= &5usize && &fst_value[..5] == "!done"{
-                return None;
+                return Err(String::from("End message recieved"));
             }if &fst_value.len() >= &5usize && &fst_value[..5] == "!trap" || &fst_value.len() >= &6usize && &fst_value[..6] == "!fatal" {
-                panic!("Here is an error during parsing because of invalid responce {:?}", landfill);
+                // panic!("Here is an error during parsing because of invalid responce {:?}", landfill);
+                return Err(format!("{} responce from router", fst_value));
             }
 
             // let mut hashpiece = HashMap::new();
@@ -179,21 +190,47 @@ pub mod mik_api{
                     }else if piece.contains("=") {
                         let mut key = piece.split("=");
                         let (key, value) = (key.nth(0).unwrap(), key.nth(0).unwrap());
-                        if query.graph_targets.as_ref()?.contains(&key.to_string()){
-                            res_values.push(String::from(value));
+                        match query.graph_targets.as_ref(){
+                            Some(val) => {
+                                    if val.contains(&key.to_string()){
+                                        res_values.push(String::from(value));
+                                    }
+                                },
+                            None => ()/* println!("Error message from router") */
                         }
-                        if query.attributes.contains(&key.to_string()){
-                            res_key.push_str(&format!(", {}=\"{}\"", key, value));
+                        match &query.attributes{
+                            Some(val) => {
+                                if val.contains(&key.to_string()){
+                                    res_key.push_str(&format!(", {}_{}=\"{}\"", query.name, key.replace("-", "_"), value));
+                                }
+                            },
+                            None => { res_key.push_str(&format!(", {}_{}=\"{}\"", query.name, key.replace("-", "_"), value)) }
+                        }
+                        // if query.attributes != None && ( query.attributes.as_ref().unwrap().len() == 0 && value != "" ) || query.attributes.as_ref().unwrap().contains(&key.to_string()){
+                        //     res_key.push_str(&format!(", {}_{}=\"{}\"", query.name, key.replace("-", "_"), value));
 
-                            // res.insert(
-                            //     String::from(key), 
-                            //     String::from(value));
-                        }
+                        //     // res.insert(
+                        //     //     String::from(key), 
+                        //     //     String::from(value));
+                        // }
                     }
                 }
             }
+            if res_values.len() == 0{
+                res.insert(
+                    res_key.to_owned()+"}",
+                    0.to_string()
+                );
+            }else{
+                for value in &res_values{
+                    res.insert(
+                        res_key.to_owned()+"}",
+                        value.to_string() 
+                    );
+                }
+            }
 
-            Some(res)
+            Ok(res)
         }
 
         /// Logins into the routerboatd
@@ -243,14 +280,14 @@ pub mod mik_api{
             let hash_res = self.responce_decoder(&output[..], query);
             if verbose == true{
                 match &hash_res{
-                    Some(val) => println!(">> {:#?}", val),
-                    None => println!("Nothing in responce")
+                    Ok(val) => println!(">> {:#?}", val),
+                    Err(msg) => println!("Error: {}", msg)
                 }
             }
 
             match hash_res{
-                Some(value) => { hash_container.push(value); return Ok(()); },
-                None => Err(String::from("None hash result"))
+                Ok(value) => { hash_container.push(value); return Ok(()); },
+                Err(msg) => Err(msg)
             }
         }
         
@@ -272,9 +309,10 @@ pub mod mik_api{
                     "/metrics" => {
                         println!("{:?}:\twent to metrics page", request);
 
+                        // adding commands output
                         for connection in connections.iter_mut(){
                             for command in &queries.commands{
-                                println!("{}", command.command);
+                                // println!("{}", command.command);
             
                                 match connection.tell_get( &vec![ command.command.to_string() ], verbosibility, command, &mut metrics ){
                                     Ok(_) => (),
@@ -283,10 +321,11 @@ pub mod mik_api{
                                 
                             }
                         }
+                        // println!("{:?}", metrics);
         
                         let mut res = "".to_owned();
         
-                        for dicts in metrics{
+                        for dicts in &metrics{
                             for (key, value) in dicts{
                                 res += &format!("{} {}\n", key, value);
                             }
@@ -326,6 +365,18 @@ pub mod mik_api{
                 // std::thread::sleep(date_array_to_duration(queries.interval)); // not used because prometheus will do it itself
             }
             return metrics;
+        }
+    }
+
+    impl Drop for Connector{
+        fn drop(&mut self) {
+            match self.secured{
+                true => { self.ssl_stream.as_mut().unwrap().shutdown()
+                            .expect(&format!("Error during closing session {}", self.address.to_string())); },
+                false => { self.stream.as_mut().unwrap().shutdown(std::net::Shutdown::Both)
+                            .expect(&format!("Error during closing session {}", self.address.to_string())); }
+            }
+            println!("Disconnected from {}", self.address.to_string());
         }
     }
 

@@ -46,8 +46,12 @@ async fn main(){
 
     if env::args().filter( |x| {x == "-i"} ).count() > 0 {
         interactive(connections);
-    }else{
-        println!("Starting listenong on: http://localhost:7878");
-        Connector::queries_teller(&mut connections, "./config/commands.json".to_string(), false, "localhost".to_string(), 7878).await;
+    }else if env::args().filter( |x| {x == "-v"} ).count() > 0 {
+        println!("Starting listening on: http://0.0.0.0:7878");
+        Connector::queries_teller(&mut connections, "./config/commands.json".to_string(), true, "0.0.0.0".to_string(), 7878).await;
+    }
+    else{
+        println!("Starting listening on: http://0.0.0.0:7878");
+        Connector::queries_teller(&mut connections, "./config/commands.json".to_string(), false, "0.0.0.0".to_string(), 7878).await;
     }
 }

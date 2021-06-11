@@ -11,4 +11,8 @@ Cargo.lock
 
 Dev_nOtEs.txt
 
-/config/credentials_.json
+/config/credentials.json
+
+**/credentials.json
+
+.DS_Store

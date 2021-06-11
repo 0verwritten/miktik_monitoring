@@ -1,10 +1,10 @@
 # mikrotik_monitoring
-Early version of monitoring tool. It doesn't have promtheus integration yet. For now it only have plain and encrypted router connection with user-typed commands
+Early version of monitoring tool. It doesn't have prometheus integration yet. I'm about to make basic functionality to use it
 
 ### Links you might want to visit:
 - Last changes read         [here](./CHANGELOG.md)
-- `commands.json`           [manual](#commands.json-explanation)
-- `credentials.json`        [explanation](#credentials.json-explanation)
+- `commands.json`           [manual](#commandsjson-explanation)
+- `credentials.json`        [explanation](#credentialsjson-explanation)
 
 ### `commands.json` explanation
 This is file where all commands application will execute automaticaly are located. Here is example and a bit of explanation:
@@ -17,6 +17,8 @@ This is file where all commands application will execute automaticaly are locate
             "multiple_objects": true,               <= if application should look for multiple results
             "name": "address_info",                 <= indentifier used in prometheus to indentify results
             "attributes": [                         <= what attributes to seek ( displayed along with command indentifier)
+                                                        if there is no such parameter, then application will display all responces
+                                                        if you haven't put anything in it then nothing will be displayed as parameter
                     "network",
                     "comment",
                     "address",
@@ -49,7 +51,7 @@ This file contains all information about routerboars application needs except ce
     {
         "name": "Router name",          <= Alias of your routerboard
         "uri": "192.168.31.1",          <= Routerboard's ip address
-        "use_ssl": true,                <= `true` if you use ssl ( even without certificate ), `false` of no
+        "use_ssl": true,                <= `true` if you use ssl ( even without certificate ), `false` if no
         "username": "user1",            <= Username
         "password": "123",              <= Password
         "cert": "/path/to/file"         <= Certificate file location
@@ -57,6 +59,6 @@ This file contains all information about routerboars application needs except ce
 ]
 ```
 
-More information on development
+More information in development
 
 [<img src="./templates/images/gears.gif" width="250"/>](./templates/images/gears.gif)
