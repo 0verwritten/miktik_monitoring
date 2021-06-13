@@ -1,43 +1,37 @@
-# mikrotik_monitoring
-Early version of monitoring tool. It doesn't have prometheus integration yet. I'm about to make basic functionality to use it
+# Mikrotik monitoring software
+Early version of monitoring tool. Will be ready to use soon
 
-### Links you might want to visit:
-- Last changes read         [here](./CHANGELOG.md)
+### Links you may want to visit:
+- Last changes              [here](./CHANGELOG.md)
 - `commands.json`           [manual](#commandsjson-explanation)
 - `credentials.json`        [explanation](#credentialsjson-explanation)
+- `grafana_dashboard.json`  beta version of [dashboard](./grafana_dashboard.json)
 
 ### `commands.json` explanation
 This is file where all commands application will execute automaticaly are located. Here is example and a bit of explanation:
+#### **Important**:
+Application adds `miktik_` to every name
 
 ```
 {
     "commands":[                                    <= array of commands
         {
-            "command":"/ip/address/print",          <= command name
-            "multiple_objects": true,               <= if application should look for multiple results
-            "name": "address_info",                 <= indentifier used in prometheus to indentify results
-            "attributes": [                         <= what attributes to seek ( displayed along with command indentifier)
+            "command": "/ping",                     <= ( required ) command name
+            "name": "ping_test",                    <= ( required ) indentifier used in prometheus to indentify results ( application will add `miktik_` before )
+            "attributes": [ "host" ],               <= what attributes to seek ( displayed along with command indentifier)
                                                         if there is no such parameter, then application will display all responces
                                                         if you haven't put anything in it then nothing will be displayed as parameter
-                    "network",
-                    "comment",
-                    "address",
-                    "interface"
-
-            ],
-            "graph_targets": []                     <= which parameter application should print to prometheus as value ( should be an number )
+            "graph_targets": ["time"],              <= this parameter application should print to prometheus as value ( should be an number )
+            "split_character": "ms",                <= separator to split value into several responces
+            "split_attributes": ["time"],           <= Attributes where application should split responce in halves
+            "query": [                              <= additional queries for command
+                "=count=1", 
+                "=address=1.1.1.1" 
+                ]
         },
         {
             "command":"/ip/cloud/print",
-            "multiple_objects": false,
             "name": "address_v6_info",
-            "attributes": [
-                    "public-address-ipv6",
-                    "ddns-enabled",
-                    "dns-name",
-
-            ],
-            "graph_targets": []
         }
     ]
 }
@@ -50,8 +44,8 @@ This file contains all information about routerboars application needs except ce
 [
     {
         "name": "Router name",          <= Alias of your routerboard
-        "uri": "192.168.31.1",          <= Routerboard's ip address
-        "use_ssl": true,                <= `true` if you use ssl ( even without certificate ), `false` if no
+        "uri": "192.168.31.1:8729",     <= Routerboard's ip address
+        "use_ssl": true,                <= `true` if you use ssl ( recommended ), `false` if no
         "username": "user1",            <= Username
         "password": "123",              <= Password
         "cert": "/path/to/file"         <= Certificate file location
@@ -59,6 +53,6 @@ This file contains all information about routerboars application needs except ce
 ]
 ```
 
-More information in development
+More information in soon
 
 [<img src="./templates/images/gears.gif" width="250"/>](./templates/images/gears.gif)

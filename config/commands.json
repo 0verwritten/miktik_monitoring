@@ -2,29 +2,41 @@
     "commands":[
         {
             "command":"/system/identity/print",
-            "multiple_objects":false,
             "name": "identity"
         },
         {
             "command": "/system/resource/print",
-            "multiple_objects": false,
-            "name": "router_status",
-            "graph_targets": [
-                "cpu-load"
-            ]
+            "name": "router_status"
         },
         {
             "command": "/system/resource/print",
-            "multiple_objects": false,
-            "name": "cpu_load",
+            "name": "router_status",
             "attributes": [],
             "graph_targets": [
-                "cpu-load"
+                "cpu-load", "free-memory", "total-memory", "free-hdd-space", "total-hdd-space"
             ]
         },
         {
+            "command": "/system/routerboard/print",
+            "name": "routerboard_status",
+            "attributes": ["model", "current-firmware", "upgrade-firmware"]
+        },
+        {
+            "command": "/system/health/print",
+            "name": "router_health",
+            "attributes": [],
+            "graph_targets":["temperature", "voltage"]
+        },
+
+        {
+            "command":"/interface/print",
+            "name": "interfaces",
+            "attributes": ["name", "type", "mac-address", "disabled", "running"]
+        },
+
+
+        {
             "command":"/ip/address/print",
-            "multiple_objects": true,
             "name": "address_info",
             "attributes": [
                     "network",
@@ -37,7 +49,6 @@
         },
         {
             "command":"/ipv6/address/print",
-            "multiple_objects": true,
             "name": "address_info",
             "attributes": [
                     "network",
@@ -49,7 +60,6 @@
         },
         {
             "command":"/ip/dhcp-server/lease/print",
-            "multiple_objects": true,
             "name": "dhcp_leases",
             "attributes": [
                 "address",
@@ -57,6 +67,32 @@
                 "host-name",
                 "comment"
             ]
+        },
+
+        {
+            "command":"/interface/monitor-traffic",
+            "query":[ "=interface=aggregate", "=duration=0.1"],
+            "name": "interfaces_traffic",
+            "attributes": [],
+            "graph_targets": ["rx-bits-per-second", "tx-bits-per-second"]
+        },
+
+        {
+            "command": "/queue/simple/print",
+            "name": "queue",
+            "attributes": ["name", "parent", "priority"],
+            "split_character": "/",
+            "split_attributes": ["rate"],
+            "graph_targets": ["rate"]
+        },
+        {
+            "command": "/ping",
+            "name": "ping_test",
+            "attributes": [],
+            "graph_targets": ["time"],
+            "split_character": "ms",
+            "split_attributes": ["time"],
+            "query": [ "=count=1", "=address=1.1.1.1" ]
         }
     ]
 }

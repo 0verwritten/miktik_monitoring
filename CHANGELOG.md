@@ -4,39 +4,48 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 ## TO DO:
 
 #### Errors:
+
+#### New features:
+- [ ] ssl ca verification 
+- [ ] ssl certificate acceptance
+- [ ] grafana dashboard
+- [ ] prometheus authentication
+- [ ] add posibility to disable or change automatic prependix
+
+##### Big inverntions:
+- [ ] Improve performance
+- [ ] not panic when router not responds
+- [ ] reconnect to router on an error
+- [ ] custum function to that implement aditional functionality
+- [ ] async requests
+- [ ] upgrade `README.md` file
+- [ ] Verbose and non-verbore loging update
+- [ ] class that parses certain responces ( may have to be marked to parse )
+
+##### Light updates:
+- [ ] update commands template and example files
+- [x] not display value if it isn't present in the responce
+
+#### Not that important:
+- [ ] use router name from `credentials.json` to indentify routers
 - [ ] utf8 error handling ( never happened so far )
+- [ ] connect to routerboards using domain name
+- [ ] make config change on site?
+- [ ] make error type, not just a string
+- [ ] Optimise responce parsing using custum types for each query
+- [ ] parse `uptime` field to display beautifully
+- [ ] update trap error
+
+<!-- 
+#### Older tasks:
 - [x] "no `graph_targets` to no results" - bug
 - [x] requests handling correctly
 - [x] application frezes after invalid commands
 - [x] operate with router errors
 - [x] bug when responce is too long
 - [x] strange responce from application ( variables mess up and application freezes sometimes )
-
-#### New features:
-
-##### Big inverntions:
-- [ ] ssl ca verification 
-- [ ] ssl certificate acceptance
-- [ ] grafana dashboard
 - [x] make config file and gradana dashboard using prometheus data got by this application
-- [ ] upgrade `README.md` file
-- [ ] Verbose and non-verbore loging update
-- [ ] not all mikrotik responces are ready to use ( may be application should split by some separator, etc. ) 
-
-##### Light updates:
 - [x] command query execution from `commands.json` file
-- [ ] update commands template and example files
-
-#### Not that important:
-- [ ] connect to routerboards using domain name
-- [ ] make config change on site?
-- [ ] make error type, not just a string
-- [ ] Optimise responce parsing using custum types for each query
-- [ ] async requests or parallel
-- [ ] parse uptime to display beautifully
-
-<!-- 
-#### Older tasks:
 - [x] make config for users credentials
 - [x] add router custum naming in login config file
 - [x] Write config tutorial in README.md
@@ -61,13 +70,23 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 ## Chages:
 
 ### Last changes:
+- Changed Hashmap responce style to Vector one ( responces with vector of ready-to-use strings instead of vector of hashmaps)
+- Created first version of grafana dashboard
+- Added automatic prependix in web page
+- Split option in `commands.json` file
+- Updated `Readme.md` slightly
+- Updated grafana dashboard
+- Updated `commands.json`file
+
+
+### Older Changes: 
+##### v0.1.4
 - Fixed "panic on !trap sign" gate
 - Made new reading algorithm
 - Fixed bug - last line wasn't displayed
 - updated `commands.json` file
 - First version of verbose option
 
-### Older Changes: 
 ##### v0.1.3
 - added config files explanation
 - changed files location slightly

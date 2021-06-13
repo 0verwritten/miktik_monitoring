@@ -37,10 +37,12 @@ pub mod mik_api{
     /// Commands config deserealization structure
     #[derive(serde::Serialize, serde::Deserialize, Debug)]
     pub struct Queries{
+        split_attributes: Option<Vec<String>>,
+        split_character: Option<String>,
         graph_targets: Option<Vec<String>>,
+        attributes: Option<Vec<String>>,
         query: Option<Vec<String>>,
         separator: Option<String>,
-        attributes: Option<Vec<String>>,
         // multiple_objects: bool,
         // frequency: [u8; 4],
         command: String,
@@ -145,92 +147,114 @@ pub mod mik_api{
         }
         
         /// Responce formater
-        // fn responce_decoder(&mut self, responce: &str, attributes: Option<&Vec<String>>, key_values: &Vec<String>) -> Option::<Vec<HashMap::<String, String>>> { // temporary solution
-        fn responce_decoder(&mut self, responce: &str, query: &Queries) -> Result::<HashMap::<String, String>, String> { // temporary solution
-            let mut res         = HashMap::<String, String>::new();
+        // fn response_decoder(&mut self, responce: &str, attributes: Option<&Vec<String>>, key_values: &Vec<String>) -> Option::<Vec<HashMap::<String, String>>> { // temporary solution
+        fn response_decoder(&mut self, responce: &str, query: &Queries) -> Result::<Vec::<String>, String> { // temporary solution
+            let mut res         = Vec::<String>::new();
             let mut landfill    = responce.split("\n");
             let     fst_value   = landfill.nth(0).unwrap();
 
             if  &fst_value.len() >= &5usize && &fst_value[..5] == "!done"{
-                return Err(String::from("End message recieved"));
+                return Err(format!("End message recieved from {} on command {}", self.address, query.command));
             }if &fst_value.len() >= &5usize && &fst_value[..5] == "!trap" || &fst_value.len() >= &6usize && &fst_value[..6] == "!fatal" {
                 // panic!("Here is an error during parsing because of invalid responce {:?}", landfill);
-                return Err(format!("{} responce from router", fst_value));
+                return Err(format!("{} responce in command {} from router {}", fst_value, query.command, self.address));
             }
-
-            // let mut hashpiece = HashMap::new();
-            let mut res_key          = String::from(format!("{}{{routerboard_address=\"{}\"", query.name, self.address.to_string()));
-            let mut res_values       = Vec::<String>::new();
+            let mut res_keys        = HashMap::new();
+            let mut res_values      = HashMap::new();
             for piece in landfill{
                 {
                     if &piece[..] == "!re"{
-                        if res_values.len() == 0{
-                            res.insert(
-                                res_key.to_owned()+"}",
-                                0.to_string()
-                            );
-                        }else{
-                            for value in &res_values{
-                                res.insert(
-                                    res_key.to_owned()+"}",
-                                    value.to_string() 
-                                );
-                            }
-                        }
-                        res_key     = String::from(format!("{}{{routerboard_address=\"{}\"", query.name, self.address.to_string()));
-                        res_values  = Vec::<String>::new();
-                        // res.push(hashpiece);
-                        // hashpiece = HashMap::new();
+                        self.web_responce_formater(query, &res_keys, &res_values, &mut res);
+
+                        // res_keys = HashMap::new();
+                        res_keys = HashMap::new();
+
                         continue;
-                    }
-                    else if piece.len() >= 3 && &piece[..3] == ".id"{ // not quite sure it is valuable
-                        
-                        // res.insert(String::from(&piece[1..3]), String::from(&piece[5..]));
-                        // hashpiece.insert(String::from(&piece[1..3]), String::from(&piece[5..]));
                     }else if piece.contains("=") {
                         let mut key = piece.split("=");
                         let (key, value) = (key.nth(0).unwrap(), key.nth(0).unwrap());
-                        match query.graph_targets.as_ref(){
-                            Some(val) => {
+                        let key_formated = key.replace("-", "_");
+                        if query.split_character != None && query.split_attributes.as_ref().unwrap_or(&Vec::new()).contains(&key.to_string()) && value.contains(query.split_character.as_ref().unwrap()){
+                            if let Some(list) = &query.split_attributes {
+                                let value = value.split(query.split_character.as_ref().unwrap()).collect::<Vec<&str>>();
+                                match query.graph_targets.as_ref(){
+                                    Some(val) => {
+                                            if val.contains(&key.to_string()){
+                                                for i in 0..value.len(){ if value[i] != "" {
+                                                    res_values.insert(format!("{}_{}", key_formated, i), String::from(value[i]));
+                                                }}
+                                            }
+                                        },
+                                    None => ()/* println!("Error message from router") */
+                                }
+                                match &query.attributes{
+                                    Some(val) => {
+                                        if val.contains(&key.to_string()){
+                                            for i in 0..value.len(){ if value[i] != "" {
+                                                res_keys.insert(format!("{}_{}", key_formated, i), String::from(value[i]));
+                                            }}
+                                        }
+                                    },
+                                    None => { for i in 0..value.len(){ if value[i] != "" { res_keys.insert(format!("{}_{}", key, i), String::from(value[i])); } } }
+                                }
+                            }
+                        }else{
+                            match query.graph_targets.as_ref(){
+                                Some(val) => {
+                                        if val.contains(&key.to_string()){
+                                            res_values.insert(String::from(&key_formated), String::from(value));
+                                        }
+                                    },
+                                None => ()/* println!("Error message from router") */
+                            }
+                            match &query.attributes{
+                                Some(val) => {
                                     if val.contains(&key.to_string()){
-                                        res_values.push(String::from(value));
+                                        res_keys.insert(key_formated, String::from(value));
                                     }
                                 },
-                            None => ()/* println!("Error message from router") */
+                                None => { res_keys.insert(key_formated, String::from(value)); }
+                            }
                         }
-                        match &query.attributes{
-                            Some(val) => {
-                                if val.contains(&key.to_string()){
-                                    res_key.push_str(&format!(", {}_{}=\"{}\"", query.name, key.replace("-", "_"), value));
-                                }
-                            },
-                            None => { res_key.push_str(&format!(", {}_{}=\"{}\"", query.name, key.replace("-", "_"), value)) }
-                        }
-                        // if query.attributes != None && ( query.attributes.as_ref().unwrap().len() == 0 && value != "" ) || query.attributes.as_ref().unwrap().contains(&key.to_string()){
-                        //     res_key.push_str(&format!(", {}_{}=\"{}\"", query.name, key.replace("-", "_"), value));
-
-                        //     // res.insert(
-                        //     //     String::from(key), 
-                        //     //     String::from(value));
-                        // }
                     }
                 }
             }
+            self.web_responce_formater(query, &res_keys, &res_values, &mut res);
+            
+
+            Ok(res)
+        }
+
+        /// Converts keys and values from `response_decoder` into a result string vector
+        fn web_responce_formater(&self, query: &Queries, res_keys: &HashMap<String, String>, res_values: &HashMap<String, String>, res: &mut Vec<String>) {
             if res_values.len() == 0{
-                res.insert(
-                    res_key.to_owned()+"}",
-                    0.to_string()
+                res.push(
+                    String::from(format!("miktik_{}{{routerboard_address=\"{}\"{}}} 0", query.name, self.address.to_string(),
+                            (|| -> String {  
+                                let mut res = String::new(); 
+                                for (key, value) in res_keys {
+                                    res += &format!(", {}_{}=\"{}\"", query.name, key, value); 
+                                }
+                                res
+                            })()
+                        ))
                 );
             }else{
-                for value in &res_values{
-                    res.insert(
-                        res_key.to_owned()+"}",
-                        value.to_string() 
+                for (key, value) in res_values{
+                    res.push(
+                        String::from(format!("miktik_{}_{}{{routerboard_address=\"{}\"{}}} {}", query.name, key.replace("-", "_"), self.address.to_string(),
+                            (|| -> String {  
+                                let mut res = String::new(); 
+                                for (key, value) in res_keys {
+                                    res += &format!(", {}_{}=\"{}\"", query.name, key, value); 
+                                }
+                                res
+                            })(),
+                            value.to_string() 
+                        ))
                     );
                 }
             }
-
-            Ok(res)
         }
 
         /// Logins into the routerboatd
@@ -265,19 +289,23 @@ pub mod mik_api{
         /// Sends commands from list to routerboard after [Login] has been perforned
         /// 
         /// [Login]: login
-        pub fn tell_get(&mut self, lines: &Vec::<String>, verbose: bool, query: &Queries, hash_container: &mut Vec<HashMap<String, String>>) -> Result<(), String>{//sender: &mut [net::TcpStream]
+        pub fn tell_get(&mut self, lines: &Vec::<String>, verbose: bool, query: &Queries, container: &mut Vec<String>) -> Result<(), String>{//sender: &mut [net::TcpStream]
             let mut text = Vec::<u8>::new();
             for l in lines{
                 for x in hexer(l.as_bytes(), false){
                     text.push(x);
                 }
             }
+            match &query.query{
+                Some(val) => { for l in val { for x in hexer(l.as_bytes(), false) { text.push(x); } } }
+                None => ()
+            }
             text.push(0);
             if self.secured { (self.ssl_stream.as_mut().unwrap()).write(&text).unwrap(); } 
             else            { self.stream.as_mut().unwrap().write(&text).unwrap(); }
             
             let output = self.reader();
-            let hash_res = self.responce_decoder(&output[..], query);
+            let hash_res = self.response_decoder(&output[..], query);
             if verbose == true{
                 match &hash_res{
                     Ok(val) => println!(">> {:#?}", val),
@@ -286,15 +314,15 @@ pub mod mik_api{
             }
 
             match hash_res{
-                Ok(value) => { hash_container.push(value); return Ok(()); },
+                Ok(mut value) => { container.append(&mut value); return Ok(()); },
                 Err(msg) => Err(msg)
             }
         }
         
         /// Executes commands from list runs web server with metrics to be reserved by prometheus
         // pub async fn queries_teller(&mut self, queries: Commands, verbosibility: bool, uri: String, port: u32, ) -> Vec::<HashMap<String, String>> {
-        pub async fn queries_teller(connections: &mut Vec::<Connector>, queries_file: String, verbosibility: bool, uri: String, port: u32, ) -> Vec::<HashMap<String, String>> {
-            let mut metrics = Vec::<HashMap<String, String>>::new();    
+        pub async fn queries_teller(connections: &mut Vec::<Connector>, queries_file: String, verbosibility: bool, uri: String, port: u32, ) -> Vec::<String> {
+            let mut metrics = Vec::<String>::new();    
             let server = tiny_http::Server::http(format!("{}:{}", uri, port)).unwrap();
             let mut queries: Commands = type_reader(&queries_file);
 
@@ -321,19 +349,16 @@ pub mod mik_api{
                                 
                             }
                         }
-                        // println!("{:?}", metrics);
         
                         let mut res = "".to_owned();
         
-                        for dicts in &metrics{
-                            for (key, value) in dicts{
-                                res += &format!("{} {}\n", key, value);
-                            }
+                        for value in &metrics{
+                                res += &format!("{}\n", value);
                         }
         
                         let response = tiny_http::Response::from_string(res);
                         let _ = request.respond(response);
-                        metrics = Vec::<HashMap<String, String>>::new();
+                        metrics = Vec::<String>::new();
                     },
                     "/" => { 
                         println!("{:?}: console home is here", request);
