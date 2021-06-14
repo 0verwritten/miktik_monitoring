@@ -4,40 +4,43 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 ## TO DO:
 
 #### Errors:
+- [ ] utf8 error handling ( never happened so far )
 
 #### New features:
-- [ ] ssl ca verification 
-- [ ] ssl certificate acceptance
+- [x] ssl ca verification 
+- [x] ssl certificate acceptance
 - [ ] grafana dashboard
 - [ ] prometheus authentication
-- [ ] add posibility to disable or change automatic prependix
 
 ##### Big inverntions:
-- [ ] Improve performance
-- [ ] not panic when router not responds
-- [ ] reconnect to router on an error
-- [ ] custum function to that implement aditional functionality
-- [ ] async requests
+- [ ] docker image
+- [ ] release a release
+- [x] don't panic when router doen't respond
+- [x] reconnect to router on an error
+- [x] reconnection function 
 - [ ] upgrade `README.md` file
+- [x] Colored display
 - [ ] Verbose and non-verbore loging update
-- [ ] class that parses certain responces ( may have to be marked to parse )
 
 ##### Light updates:
 - [ ] update commands template and example files
-- [x] not display value if it isn't present in the responce
 
 #### Not that important:
+- [ ] async requests
+- [ ] add posibility to disable or change automatic prependix
+- [ ] custum function to that implement aditional functionality
+- [ ] class that parses certain responces ( may have to be marked to parse )
 - [ ] use router name from `credentials.json` to indentify routers
-- [ ] utf8 error handling ( never happened so far )
 - [ ] connect to routerboards using domain name
 - [ ] make config change on site?
 - [ ] make error type, not just a string
 - [ ] Optimise responce parsing using custum types for each query
 - [ ] parse `uptime` field to display beautifully
-- [ ] update trap error
+- [x] update `!trap` error
 
 <!-- 
 #### Older tasks:
+- [x] not display value if it isn't present in the responce
 - [x] "no `graph_targets` to no results" - bug
 - [x] requests handling correctly
 - [x] application frezes after invalid commands
@@ -70,6 +73,17 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 ## Chages:
 
 ### Last changes:
+- added certificate verification ( by authority, certificate itself, no verification at all )
+- added function to reconnect to router
+- updated error responces
+- added automatic reconnection to router
+- add skipping router on initial in case of error
+- errors now print into erorr stream ( better for logging )
+- added some colors to output
+
+
+### Older Changes: 
+##### v0.1.5
 - Changed Hashmap responce style to Vector one ( responces with vector of ready-to-use strings instead of vector of hashmaps)
 - Created first version of grafana dashboard
 - Added automatic prependix in web page
@@ -78,8 +92,6 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 - Updated grafana dashboard
 - Updated `commands.json`file
 
-
-### Older Changes: 
 ##### v0.1.4
 - Fixed "panic on !trap sign" gate
 - Made new reading algorithm

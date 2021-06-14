@@ -1,10 +1,7 @@
 extern crate async_std;
 
-use mik_api::mik_api::type_reader;
-use std::{ io, env, future, task };
 use mik_api::mik_api::Connector;
-use std::net::SocketAddr;
-use core::str::from_utf8;
+use std::{ io, env };
 
 /// brings interactiveness to the application
 fn interactive(mut connections: std::vec::Vec<mik_api::mik_api::Connector>){
@@ -42,16 +39,14 @@ async fn main(){
         return;
     }
 
-    let mut connections = Connector::initial( String::from("./config/credentials.json"), true, true ).unwrap();
+    let mut connections = Connector::initial( String::from("./config/credentials.json"), true, false ).unwrap();
 
     if env::args().filter( |x| {x == "-i"} ).count() > 0 {
         interactive(connections);
     }else if env::args().filter( |x| {x == "-v"} ).count() > 0 {
-        println!("Starting listening on: http://0.0.0.0:7878");
         Connector::queries_teller(&mut connections, "./config/commands.json".to_string(), true, "0.0.0.0".to_string(), 7878).await;
     }
     else{
-        println!("Starting listening on: http://0.0.0.0:7878");
         Connector::queries_teller(&mut connections, "./config/commands.json".to_string(), false, "0.0.0.0".to_string(), 7878).await;
     }
 }

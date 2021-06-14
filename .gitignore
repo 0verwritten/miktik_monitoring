@@ -16,3 +16,5 @@ Dev_nOtEs.txt
 **/credentials.json
 
 .DS_Store
+
+data/*
