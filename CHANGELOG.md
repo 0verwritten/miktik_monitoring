@@ -7,26 +7,23 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 - [ ] utf8 error handling ( never happened so far )
 
 #### New features:
-- [x] ssl ca verification 
-- [x] ssl certificate acceptance
 - [ ] grafana dashboard
 - [ ] prometheus authentication
 
 ##### Big inverntions:
+- [x] add routerboard status ( up/down )
 - [ ] docker image
+- [ ] docker container initialization process ( when mounting volumes with config file from outside )
 - [ ] release a release
-- [x] don't panic when router doen't respond
-- [x] reconnect to router on an error
-- [x] reconnection function 
 - [ ] upgrade `README.md` file
-- [x] Colored display
 - [ ] Verbose and non-verbore loging update
 
 ##### Light updates:
 - [ ] update commands template and example files
+- [ ] clean up the code
+- [ ] update interactive mode ( add authorization in console, ability to choose where to take credentials from )
 
 #### Not that important:
-- [ ] async requests
 - [ ] add posibility to disable or change automatic prependix
 - [ ] custum function to that implement aditional functionality
 - [ ] class that parses certain responces ( may have to be marked to parse )
@@ -36,10 +33,17 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 - [ ] make error type, not just a string
 - [ ] Optimise responce parsing using custum types for each query
 - [ ] parse `uptime` field to display beautifully
-- [x] update `!trap` error
 
 <!-- 
 #### Older tasks:
+- [x] ssl ca verification 
+- [x] ssl certificate acceptance
+- [x] Colored display
+- [x] parallel requests
+- [x] update `!trap` error
+- [x] don't panic when router doen't respond
+- [x] reconnect to router on an error
+- [x] reconnection function 
 - [x] not display value if it isn't present in the responce
 - [x] "no `graph_targets` to no results" - bug
 - [x] requests handling correctly
@@ -73,6 +77,15 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 ## Chages:
 
 ### Last changes:
+- updated dashboard
+- added status of routerboard
+- made automatic metrics collector sending requests in parallel
+- fixed reconnecting bug
+- login faliue fix
+- updated parallel requesting
+
+### Older Changes: 
+##### v0.2.0
 - added certificate verification ( by authority, certificate itself, no verification at all )
 - added function to reconnect to router
 - updated error responces
@@ -81,8 +94,6 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 - errors now print into erorr stream ( better for logging )
 - added some colors to output
 
-
-### Older Changes: 
 ##### v0.1.5
 - Changed Hashmap responce style to Vector one ( responces with vector of ready-to-use strings instead of vector of hashmaps)
 - Created first version of grafana dashboard

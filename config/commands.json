@@ -27,11 +27,11 @@
             "attributes": [],
             "graph_targets":["temperature", "voltage"]
         },
-
         {
             "command":"/interface/print",
             "name": "interfaces",
-            "attributes": ["name", "type", "mac-address", "disabled", "running"]
+            "attributes": ["name", "type", "mac-address"],
+            "graph_targets": ["running", "disabled"]
         },
 
 
@@ -93,6 +93,13 @@
             "split_character": "ms",
             "split_attributes": ["time"],
             "query": [ "=count=1", "=address=1.1.1.1" ]
+        },
+        {
+            "command": "/ip/firewall/filter/print",
+            "name": "traffic_counter",
+            "attributes": [],
+            "graph_targets": ["bytes"],
+            "query": ["?comment=internet counter"]
         }
     ]
 }

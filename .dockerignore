@@ -1,0 +1,5 @@
+data/*
+target
+CHANGELOG.md
+README.md
+grafana_dashboard.json

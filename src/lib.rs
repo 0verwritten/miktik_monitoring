@@ -1,22 +1,25 @@
-pub mod mik_api{
+pub mod miktik_api{
     extern crate openssl;
     extern crate serde;
     extern crate chrono;
     extern crate tiny_http;
     extern crate termion;
 
+    use std::thread;
+    use std::sync::{Arc, Mutex};
+
     use std::{
-        time::{Duration/*, SystemTime, Instant*/},
+        time::{ Duration /*, SystemTime, Instant*/ },
         collections::HashMap,
         io,
         io::{Read, Write},
         // fs::File,
         net,
-        net::{/*IpAddr,*/ TcpStream}};
-    // use chrono::DateTime;
+        net::{ /*IpAddr,*/ TcpStream } };
     use core::str::from_utf8;
-    use termion::{color, style};
-    use openssl::{ssl, ssl::{SslMethod, /*SslConnector,*/ SslStream}};
+    use termion::{ color, style };
+    use openssl::{ ssl, ssl::{ SslMethod, /*SslConnector,*/ SslStream } };
+    // use chrono::DateTime;
 
     /// Responce Error type
     pub enum ConnectionError{
@@ -103,7 +106,7 @@ pub mod mik_api{
                     connector.set_certificate_file( std::path::Path::new(cert), ssl::SslFiletype::PEM ).unwrap();
                     connector.set_verify(ssl::SslVerifyMode::PEER); 
                 } else { 
-                    eprintln!("{}Warning!{} No certificate verification used", color::Fg(color::Yellow), color::Fg(color::Reset));
+                    eprintln!("{}Warning!{} No certificate verification used in {}", color::Fg(color::Yellow), color::Fg(color::Reset), addr);
                     connector.set_verify(ssl::SslVerifyMode::NONE);
                 }
                 // connector.set_verify()
@@ -135,13 +138,14 @@ pub mod mik_api{
                     Err(err) => { eprintln!("{}Error{} connecting to {}: {}. Skipping", color::Fg(color::LightRed), color::Fg(color::Reset), item.uri.parse::<net::SocketAddr>().unwrap(), err); continue; }
                 };
                 match connection.login(&item.username, &item.password, save_credentials, verbose){
-                    Ok(_) => (),
-                    Err(err) => eprintln!("{}Error{} on logining {} one. Error name: \"{}\"", color::Fg(color::LightRed), color::Fg(color::Reset), item.name, err)
+                    Ok(_) => connections.push(connection),
+                    Err(err) => { eprintln!("{}Error{} on logining {} one ({}):\n\"{}{}{}\"", color::Fg(color::LightRed), color::Fg(color::Reset), item.name, item.uri, style::Bold, err, style::Reset) }
                 }
-                connections.push(connection);
             }
 
-            return Ok(connections);
+            return if connections.len() == 0 { Err(String::from("Connected to 0 instances!"))} 
+                    else if connections.len() < data.len() { eprintln!("{}Connected to {} instences out of {}{}", color::Fg(color::LightYellow), connections.len(), data.len(), color::Fg(color::Reset)); Ok(connections) }
+                    else { Ok(connections) };
         }
 
         fn reconnect(&mut self, verbose: bool) -> Result<(), ConnectionError>{
@@ -156,6 +160,20 @@ pub mod mik_api{
             }
         }
 
+        /// Logins into the routerboatd
+        pub fn login(&mut self, username: &str, pwd: &str, overwrite: bool, verbose: bool) -> Result<(), String>{
+            if self.username == None || overwrite == true { self.username = Some(String::from(username)); }
+            if self.password == None || overwrite == true { self.password = Some(String::from(pwd)); }
+            match self.tell(&["/login".to_string(), format!("=name={}", self.username.as_ref().unwrap()), format!("=password={}", self.password.as_ref().unwrap())].to_vec(), verbose, None){
+                Ok(responce) => { 
+                    if verbose == true { println!("login responce: {}", responce); }
+                    if &responce == "!done" { return Ok(()); }
+                    else { return Err( responce.to_string() ); }
+                },
+                Err(msg) => return Err( msg.to_string() )
+            };
+        }
+
         /// Reads responce from the network stream after [Teller] send the request
         /// [Teller]: tell
         fn reader(&mut self) -> Result<String, io::Error>{ // net::TcpStream
@@ -168,7 +186,7 @@ pub mod mik_api{
                         Ok(size) => {
                             for value in 0..size { res_bytes.push(data[value]); };
                             
-                            if data[ size - 7..size] == [ 5, 33, 100, 111, 110, 101, 0 ] { break; } // '!done ' sign means end of sentence
+                            if size <= 7 || data[ size - 7..size] == [ 5, 33, 100, 111, 110, 101, 0 ] { break; } // '!done ' sign means end of sentence
                         },
                         Err(err) => { return Err(err); /*panic!( "An error occurred, terminating connection {}\n", err );*/ }
                         }
@@ -181,7 +199,7 @@ pub mod mik_api{
                     Ok(size) => {
                         for value in 0..size { res_bytes.push(data[value]); };
 
-                        if data[ size - 7..size] == [ 5, 33, 100, 111, 110, 101, 0 ] { break; } // '!done ' sign means end of sentence
+                        if size <= 7 || data[ size - 7..size] == [ 5, 33, 100, 111, 110, 101, 0 ] { break; } // '!done ' sign means end of sentence
                     },
                     Err(err) => { return Err(err); /*panic!("An error occurred, terminating connection");*/ }
                     }
@@ -216,15 +234,18 @@ pub mod mik_api{
                         continue;
                     }else if piece.contains("=") {
                         let mut key = piece.split("=");
-                        let (key, value) = (key.nth(0).unwrap(), key.nth(0).unwrap());
+                        let (key, mut value) = (key.nth(0).unwrap(), key.nth(0).unwrap());
                         let key_formated = key.replace("-", "_");
+                        if value == "true" { value = "1"; }
+                        else if value == "false" { value = "0"; }
+
                         if query.split_character != None && query.split_attributes.as_ref().unwrap_or(&Vec::new()).contains(&key.to_string()) && value.contains(query.split_character.as_ref().unwrap()){
                             let value = value.split(query.split_character.as_ref().unwrap()).collect::<Vec<&str>>();
                             match query.graph_targets.as_ref(){
                                 Some(val) => {
                                         if val.contains(&key.to_string()){
                                             for i in 0..value.len(){ if value[i] != "" {
-                                                res_values.insert(format!("{}_{}", key_formated, i), String::from(value[i]));
+                                                res_values.insert(format!("{}_{}", key_formated, i), value[i].parse().unwrap());
                                             }}
                                         }
                                     },
@@ -244,7 +265,7 @@ pub mod mik_api{
                             match query.graph_targets.as_ref(){
                                 Some(val) => {
                                         if val.contains(&key.to_string()){
-                                            res_values.insert(String::from(&key_formated), String::from(value));
+                                            res_values.insert(String::from(&key_formated), value.parse().unwrap());
                                         }
                                     },
                                 None => ()/* println!("Error message from router") */
@@ -268,7 +289,7 @@ pub mod mik_api{
         }
 
         /// Converts keys and values from `response_decoder` into a result string vector
-        fn web_responce_formater(&self, query: &Queries, res_keys: &HashMap<String, String>, res_values: &HashMap<String, String>, res: &mut Vec<String>) {
+        fn web_responce_formater(&self, query: &Queries, res_keys: &HashMap<String, String>, res_values: &HashMap<String, usize>, res: &mut Vec<String>) {
             if res_values.len() == 0{
                 res.push(
                     String::from(format!("miktik_{}{{routerboard_address=\"{}\"{}}} 0", query.name, self.address.to_string(),
@@ -298,14 +319,6 @@ pub mod mik_api{
                 }
             }
         }
-
-        /// Logins into the routerboatd
-        pub fn login(&mut self, username: &str, pwd: &str, overwrite: bool, verbose: bool) -> Result<(), String>{
-            if self.username == None || overwrite == true { self.username = Some(String::from(username)); }
-            if self.password == None || overwrite == true { self.password = Some(String::from(pwd)); }
-            self.tell(&["/login".to_string(), format!("=name={}", self.username.as_ref().unwrap()), format!("=password={}", self.password.as_ref().unwrap())].to_vec(), verbose, None).unwrap();
-            Ok(())
-        }
         
         /// Sends commands to routerboard after [Login] has been perforned
         /// 
@@ -334,7 +347,8 @@ pub mod mik_api{
         /// Sends commands from list to routerboard after [Login] has been perforned
         /// 
         /// [Login]: login
-        pub fn tell_get(&mut self, lines: &Vec::<String>, verbose: bool, query: &Queries, container: &mut Vec<String>) -> Result<(), ConnectionError>{//sender: &mut [net::TcpStream]
+        // pub fn tell_get(&mut self, lines: &Vec::<String>, verbose: bool, query: &Queries, container: &mut Vec<String>) -> Result<(), ConnectionError>{//sender: &mut [net::TcpStream]
+        pub fn tell_get(&mut self, lines: &Vec::<String>, verbose: bool, query: &Queries) -> Result<Vec<String>, ConnectionError>{//sender: &mut [net::TcpStream]
             let mut text = Vec::<u8>::new();
             for l in lines{
                 for x in hexer(l.as_bytes(), false){
@@ -362,18 +376,21 @@ pub mod mik_api{
             }
 
             match hash_res{
-                Ok(mut value) => { container.append(&mut value); return Ok(()); },
+                // Ok(mut value) => { container.append(&mut value); return Ok(()); },
+                Ok(value) => Ok(value),
                 Err(msg) => Err(ConnectionError::ResponceError(msg))
             }
         }
         
         /// Executes commands from list runs web server with metrics to be reserved by prometheus
         // pub async fn queries_teller(&mut self, queries: Commands, verbosibility: bool, uri: String, port: u32, ) -> Vec::<HashMap<String, String>> {
-        pub async fn queries_teller(connections: &mut Vec::<Connector>, queries_file: String, verbosibility: bool, uri: String, port: u32, ) -> Vec::<String> {
-            let mut metrics = Vec::<String>::new();    
+        pub async fn queries_teller(connections: Arc<Vec<Mutex<Connector>>>, queries_file: String, verbosibility: bool, uri: String, port: u32, ) -> bool /*Vec::<String>*/ {
+            // let mut metrics = Vec::<String>::new(); 
+            let metrics = Arc::new(Mutex::new(Vec::<String>::new()));
             let server = tiny_http::Server::http(format!("{}:{}", uri, port)).unwrap();
-            let mut queries: Commands = type_reader(&queries_file);
-            let mut reconnect_candidates = Vec::new();
+            let mut queries: Arc<Commands> = Arc::new(type_reader(&queries_file));
+            let reconnect_candidates = Arc::new(Mutex::new(Vec::new()));
+            let connections_len = connections.len();
 
             println!("{}Starting listening{} on: {}http://{}:{}{}", color::Fg(color::LightGreen), color::Fg(color::Reset), color::Fg(color::LightCyan), uri, port, color::Fg(color::Reset));
 
@@ -389,33 +406,63 @@ pub mod mik_api{
                         println!("{}{:?}{}:\twent to metrics page", style::Bold, request, style::Reset);
 
                         // adding commands output
-                        for i in 0..connections.len(){
-                            if !reconnect_candidates.contains(&i){
-                                for command in &queries.commands{
-                                    // println!("{}", command.command);
-                
-                                    match connections[i].tell_get( &vec![ command.command.to_string() ], verbosibility, command, &mut metrics ){
-                                        Ok(_) => (),
-                                        Err(err) => {
-                                            match err{
-                                                ConnectionError::ResponceError(msg) => eprintln!("{}", msg),
-                                                ConnectionError::IoError(_err_) => { reconnect_candidates.push(i); eprintln!("Conneciton eror: {:?}", _err_); break; }
+                        // for i in 0..connections.len(){
+                        let mut tasks = Vec::new();
+                        for i in 0..connections_len {
+                            if !reconnect_candidates.lock().unwrap().contains(&i){
+                                let queries = Arc::clone(&queries);
+                                let connections = Arc::clone(&connections);
+                                let reconnect_candidates = Arc::clone(&reconnect_candidates);
+                                let metrics = Arc::clone(&metrics);
+                                tasks.push(thread::spawn( move || {
+                                    for command in &queries.commands{
+                                        // println!("{}", command.command);
+                    
+                                        match connections[i].lock().unwrap().tell_get( &vec![ command.command.to_string() ], verbosibility, command){
+                                            Ok( mut val ) => { metrics.lock().unwrap().append(&mut val); },
+                                            Err(err) => {
+                                                match err{
+                                                    ConnectionError::ResponceError(msg) => eprintln!("{}", msg),
+                                                    ConnectionError::IoError(_err_) => { reconnect_candidates.lock().unwrap().push(i); eprintln!("Conneciton eror: {:?}", _err_); break; }
+                                                }
                                             }
                                         }
+
+                                        // match connections[i].tell_get( &vec![ command.command.to_string() ], verbosibility, command, &mut metrics ){
+                                        //     Ok(_) => (),
+                                        //     Err(err) => {
+                                        //         match err{
+                                        //             ConnectionError::ResponceError(msg) => eprintln!("{}", msg),
+                                        //             ConnectionError::IoError(_err_) => { reconnect_candidates.push(i); eprintln!("Conneciton eror: {:?}", _err_); break; }
+                                        //         }
+                                        //     }
+                                        // }
                                     }
-                                }
+                                }));
                             }
+                        }
+
+                        for task in tasks{
+                            task.join().unwrap();
                         }
         
                         let mut res = "".to_owned();
+
+                        for i in 0..connections_len{
+                            if  (&*reconnect_candidates.lock().unwrap()).contains(&i){
+                                res += &format!("miktik__connection__status__{{routerboard_address=\"{}\"}} 0\n", connections[i].lock().unwrap().address.to_string());
+                            }else{
+                                res += &format!("miktik__connection__status__{{routerboard_address=\"{}\"}} 1\n", connections[i].lock().unwrap().address.to_string());
+                            }
+                        }
         
-                        for value in &metrics{
+                        for value in &*metrics.lock().unwrap(){
                                 res += &format!("{}\n", value);
                         }
         
                         let response = tiny_http::Response::from_string(res);
                         let _ = request.respond(response);
-                        metrics = Vec::<String>::new();
+                        metrics.lock().unwrap().clear();
                     },
                     "/" => { 
                         println!("{}{:?}{}: console home is here", style::Bold, request, style::Reset);
@@ -433,7 +480,7 @@ pub mod mik_api{
                     },
                     "/config/update" => {
                         println!("{}{:?}{}:\tupdating config", style::Bold, request, style::Reset);
-                        queries = type_reader(&queries_file);
+                        queries = Arc::new(type_reader(&queries_file));
                         match request.respond(tiny_http::Response::from_file(std::fs::File::open("./templates/reload_config.html").unwrap())){
                             Ok(_) => (),
                             Err(e) => eprintln!("{}Error{} happened: {}", color::Fg(color::LightRed), color::Fg(color::Reset), e)
@@ -445,19 +492,22 @@ pub mod mik_api{
                 }
 
                 let mut removed = 0;
-                for i in 0..reconnect_candidates.len(){
-                    match connections[reconnect_candidates[i]].reconnect(verbosibility){
+                let mut recon_len = reconnect_candidates.lock().unwrap().len();
+                for i in 0..recon_len{
+                    let reconnect_res = connections[reconnect_candidates.lock().unwrap()[i]].lock().unwrap().reconnect(false);
+                    match reconnect_res{
                         Ok(()) => { 
-                            println!("Reconnected to {}", connections[reconnect_candidates[i-removed]].address);
-                            if reconnect_candidates.len() != 0{
-                                reconnect_candidates.remove(i - removed);
+                            println!("{}Reconnected{} to {}", color::Fg(color::LightGreen), color::Fg(color::Reset), connections[reconnect_candidates.lock().unwrap()[i-removed]].lock().unwrap().address);
+                            if recon_len != 0{
+                                reconnect_candidates.lock().unwrap().remove(i - removed);
+                                recon_len -= 1;
                                 removed += 1;
                             }
                         },
                         Err(err) => { 
                             match err {
-                                ConnectionError::IoError(io_err) => eprintln!("Connection error during reconnection: {}", io_err),
-                                ConnectionError::ResponceError(msg) => eprintln!("Resonce error during reconnection: {}", msg)
+                                ConnectionError::IoError(io_err) => eprintln!("{}Connection error{} during reconnection: {}", color::Fg(color::LightRed), color::Fg(color::Reset), io_err),
+                                ConnectionError::ResponceError(msg) => eprintln!("{}Resonce error{} during reconnection: {}", color::Fg(color::LightRed), color::Fg(color::Reset), msg)
                             }
                         }
                     };
@@ -465,7 +515,8 @@ pub mod mik_api{
 
                 // std::thread::sleep(date_array_to_duration(queries.interval)); // not used because prometheus will do it itself
             }
-            return metrics;
+            // return *metrics.lock().unwrap();
+            true
         }
     }
 

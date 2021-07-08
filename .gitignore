@@ -18,3 +18,5 @@ Dev_nOtEs.txt
 .DS_Store
 
 data/*
+config/credentials.json
+config/credentials.json

@@ -7,6 +7,19 @@ Early version of monitoring tool. Will be ready to use soon
 - `credentials.json`        [explanation](#credentialsjson-explanation)
 - `grafana_dashboard.json`  beta version of [dashboard](./grafana_dashboard.json)
 
+### Enviroment variables:
+
+```
+web_server_address      0.0.0.0
+web_server_port         7878
+
+web_server_username     admin   <= for future
+web_server_password     admin   <= for future
+
+prometheus_username     prom   <= for future
+prometheus_password     admin  <= for future
+```
+
 ### `commands.json` explanation
 This is file where all commands application will execute automaticaly are located. Here is example and a bit of explanation:
 #### **Important**:
