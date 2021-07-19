@@ -11,7 +11,9 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 - [ ] prometheus authentication
 
 ##### Big inverntions:
-- [x] add routerboard status ( up/down )
+- [ ] verbosibility levels
+- [x] ability to use output from previous commands as query for next ones
+- [x] reconnect to never connected routerboards
 - [ ] docker image
 - [ ] docker container initialization process ( when mounting volumes with config file from outside )
 - [ ] release a release
@@ -36,6 +38,7 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 
 <!-- 
 #### Older tasks:
+- [x] add routerboard status ( up/down )
 - [x] ssl ca verification 
 - [x] ssl certificate acceptance
 - [x] Colored display
@@ -77,6 +80,14 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 ## Chages:
 
 ### Last changes:
+- fixed dropping connection error
+- added reconnection for never connected devices
+- changed the way responce is processing
+- added ability to use output from previous commands as query for next ones
+- fixed dec_to_hex converter
+
+### Older Changes: 
+##### v0.2.1
 - updated dashboard
 - added status of routerboard
 - made automatic metrics collector sending requests in parallel
@@ -84,7 +95,6 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 - login faliue fix
 - updated parallel requesting
 
-### Older Changes: 
 ##### v0.2.0
 - added certificate verification ( by authority, certificate itself, no verification at all )
 - added function to reconnect to router

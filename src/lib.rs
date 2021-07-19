@@ -37,27 +37,26 @@ pub mod miktik_api{
         password: Option<String>,
         cert: Option<String>, // cerification location of there is one
         ca_cert: Option<String>,
-        secured: bool
+        secured: bool,
+        connected: bool
     }
 
     /// Commans config deserealization parental struct
     #[derive(serde::Serialize, serde::Deserialize, Debug)]
     pub struct Commands{
-        // interval: [u8; 4],
+        // prefix: String, TODO
         commands: Vec<Queries>
     }
 
     /// Commands config deserealization structure
     #[derive(serde::Serialize, serde::Deserialize, Debug)]
     pub struct Queries{
-        split_attributes: Option<Vec<String>>,
+        split_targets: Option<Vec<String>>,
         split_character: Option<String>,
         graph_targets: Option<Vec<String>>,
         attributes: Option<Vec<String>>,
-        query: Option<Vec<String>>,
+        query: Option<Mutex<Vec<String>>>,
         separator: Option<String>,
-        // multiple_objects: bool,
-        // frequency: [u8; 4],
         command: String,
         name: String,
     }
@@ -77,11 +76,21 @@ pub mod miktik_api{
     impl Connector{
 
         /// Initialization of connection object
-        pub fn new(addr: std::net::SocketAddr, use_ssl: bool, verbose: bool, cert_file: Option<&String>, ca_cert_file: Option<&String>) -> Result<Connector, io::Error>{
+        pub fn new(addr: std::net::SocketAddr, use_ssl: bool, verbose: bool, cert_file: Option<&String>, ca_cert_file: Option<&String>) -> Connector{
             let connection;
             let stream = match net::TcpStream::connect_timeout(&addr, Duration::new(2, 2)){
                 Ok(con) => con,
-                Err(err) => return Err(err)
+                Err(err) => return Connector{ 
+                    stream: None, 
+                    ssl_stream: None, 
+                    username: None, 
+                    password: None, 
+                    secured: use_ssl, 
+                    address: addr, 
+                    ca_cert: match ca_cert_file { Some(val) => Some(String::from(val)), None => None }, 
+                    cert: match cert_file { Some(val) => Some(String::from(val)), None => None }, 
+                    connected: false
+                }
             };
             stream.set_read_timeout(    Some(Duration::new(2,0))   ).unwrap();
             stream.set_write_timeout(   Some(Duration::new(2,0))   ).unwrap();
@@ -95,7 +104,8 @@ pub mod miktik_api{
                         secured: false,
                         address: addr,
                         ca_cert: None,
-                        cert: None
+                        cert: None,
+                        connected: true
                     };
             }else{
                 let mut connector = ssl::SslConnector::builder(SslMethod::tls_client()).unwrap();
@@ -109,7 +119,6 @@ pub mod miktik_api{
                     eprintln!("{}Warning!{} No certificate verification used in {}", color::Fg(color::Yellow), color::Fg(color::Reset), addr);
                     connector.set_verify(ssl::SslVerifyMode::NONE);
                 }
-                // connector.set_verify()
                 let connector = connector.build();
                 connection = Connector{
                         stream: None,
@@ -119,27 +128,32 @@ pub mod miktik_api{
                         secured: true,
                         address: addr,
                         ca_cert: match ca_cert_file { Some(val) => Some(String::from(val)), None => None },
-                        cert: match cert_file { Some(val) => Some(String::from(val)), None => None }
+                        cert: match cert_file { Some(val) => Some(String::from(val)), None => None },
+                        connected: true
                     };
             }
             println!("{}Connected{} to {}", color::Fg(color::LightGreen), color::Fg(color::Reset), addr);
-            Ok(connection)
+            connection
         }
 
 
         /// Creates connactions using `credentials.json` file and at the same time logins them
-        pub fn initial(file: String, save_credentials: bool, verbose: bool) -> Result<Vec::<Connector>, String>{
+        pub fn initial(file: String, verbose: bool) -> Result<Vec::<Connector>, String>{
             let mut connections = Vec::new();
             let data: Vec::<Identity> = type_reader(&file);
 
             for item in &data{
-                let mut connection = match Connector::new( match item.uri.parse() { Ok(val) => val, Err(msg) => return Err(msg.to_string()) }, item.use_ssl, verbose, item.cert.as_ref(), item.ca_cert.as_ref() ){
-                    Ok(val) => val,
-                    Err(err) => { eprintln!("{}Error{} connecting to {}: {}. Skipping", color::Fg(color::LightRed), color::Fg(color::Reset), item.uri.parse::<net::SocketAddr>().unwrap(), err); continue; }
-                };
-                match connection.login(&item.username, &item.password, save_credentials, verbose){
-                    Ok(_) => connections.push(connection),
-                    Err(err) => { eprintln!("{}Error{} on logining {} one ({}):\n\"{}{}{}\"", color::Fg(color::LightRed), color::Fg(color::Reset), item.name, item.uri, style::Bold, err, style::Reset) }
+                let mut connection = Connector::new( match item.uri.parse() { Ok(val) => val, Err(msg) => return Err(msg.to_string()) }, item.use_ssl, verbose, item.cert.as_ref(), item.ca_cert.as_ref() );
+                if !connection.connected { 
+                    eprintln!("{}Error{} connecting to {}. Skipping", color::Fg(color::LightRed), color::Fg(color::Reset), item.uri.parse::<net::SocketAddr>().unwrap()); 
+                    connection.password = Some(item.password.to_string());
+                    connection.username = Some(item.username.to_string());
+                    connections.push(connection);
+                }else{
+                    match connection.login(&item.username, &item.password, true, verbose){
+                        Ok(_) => connections.push(connection),
+                        Err(err) => { eprintln!("{}Error{} on logining {} ({}):\n\"{}{}{}\"", color::Fg(color::LightRed), color::Fg(color::Reset), item.name, item.uri, style::Bold, err, style::Reset) }
+                    }
                 }
             }
 
@@ -150,9 +164,11 @@ pub mod miktik_api{
 
         fn reconnect(&mut self, verbose: bool) -> Result<(), ConnectionError>{
             let credentials = (self.username.as_ref().unwrap().to_string(), self.password.as_ref().unwrap().to_string());
-            match Connector::new(self.address, self.secured, verbose, self.cert.as_ref(), self.ca_cert.as_ref()){
-                Ok(val) => *self =  val,
-                Err(err) => return Err(ConnectionError::IoError(err))
+            *self =  Connector::new(self.address, self.secured, verbose, self.cert.as_ref(), self.ca_cert.as_ref());
+            if !self.connected {
+                self.username = Some(credentials.0);
+                self.password = Some(credentials.1);
+                return Err(ConnectionError::ResponceError("Could not connect".to_string()));
             }
             match self.login(&credentials.0, &credentials.1, true, verbose){
                 Ok(_) => Ok(()),
@@ -167,7 +183,7 @@ pub mod miktik_api{
             match self.tell(&["/login".to_string(), format!("=name={}", self.username.as_ref().unwrap()), format!("=password={}", self.password.as_ref().unwrap())].to_vec(), verbose, None){
                 Ok(responce) => { 
                     if verbose == true { println!("login responce: {}", responce); }
-                    if &responce == "!done" { return Ok(()); }
+                    if responce.contains( "!done" ) { return Ok(()); }
                     else { return Err( responce.to_string() ); }
                 },
                 Err(msg) => return Err( msg.to_string() )
@@ -204,32 +220,29 @@ pub mod miktik_api{
                     Err(err) => { return Err(err); /*panic!("An error occurred, terminating connection");*/ }
                     }
             }}
-            // println!("{:?}", res_bytes);
             Ok(bytes_to_str(&res_bytes))
         }
         
         /// Responce formater
-        // fn response_decoder(&mut self, responce: &str, attributes: Option<&Vec<String>>, key_values: &Vec<String>) -> Option::<Vec<HashMap::<String, String>>> { // temporary solution
-        fn response_decoder(&mut self, responce: &str, query: &Queries) -> Result::<Vec::<String>, String> { // temporary solution
-            let mut res         = Vec::<String>::new();
+        fn response_decoder(&mut self, responce: &str, query: &Queries, verbose: bool) -> Result::< HashMap::<String, Vec<Vec<(String, bool, String)>>>, String> {
+            let mut res         = HashMap::<String, Vec<Vec<(String, bool, String)>>>::new();
             let mut landfill    = responce.split("\n");
             let     fst_value   = landfill.nth(0).unwrap();
 
-            if  &fst_value.len() >= &5usize && &fst_value[..5] == "!done"{
+            if  &fst_value.len() >= &5usize && &fst_value[..5] == "!done" && verbose{
                 return Err(format!("{}Empty message recieved{}: '!done' from {}{}{} in command {}", color::Fg(color::LightYellow), color::Fg(color::Reset), color::Fg(color::LightCyan),self.address, color::Fg(color::Reset), query.command));
-            }if &fst_value.len() >= &5usize && &fst_value[..5] == "!trap" || &fst_value.len() >= &6usize && &fst_value[..6] == "!fatal" {
+            }if &fst_value.len() >= &5usize && &fst_value[..5] == "!trap" || &fst_value.len() >= &6usize && &fst_value[..6] == "!fatal" && verbose {
                 // panic!("Here is an error during parsing because of invalid responce {:?}", landfill);
                 return Err(format!("{}{}{} responce from {}{}{} in command {}", color::Fg(color::LightRed), fst_value, color::Fg(color::Reset), color::Fg(color::LightCyan),self.address, color::Fg(color::Reset), query.command));
             }
-            let mut res_keys        = HashMap::new();
-            let mut res_values      = HashMap::new();
+            let mut res_values          = Vec::<(String, bool, String)>::new();  
             for piece in landfill{
                 {
                     if &piece[..] == "!re"{
-                        self.web_responce_formater(query, &res_keys, &res_values, &mut res);
-
-                        // res_keys = HashMap::new();
-                        res_keys = HashMap::new();
+                        
+                        res_values.push((String::from("routerboard_address"), false, self.address.to_string()));
+                        res.entry(query.name.to_string()).or_insert(Vec::new()).push(res_values);
+                        res_values = Vec::new();
 
                         continue;
                     }else if piece.contains("=") {
@@ -239,83 +252,67 @@ pub mod miktik_api{
                         if value == "true" { value = "1"; }
                         else if value == "false" { value = "0"; }
 
-                        if query.split_character != None && query.split_attributes.as_ref().unwrap_or(&Vec::new()).contains(&key.to_string()) && value.contains(query.split_character.as_ref().unwrap()){
+                        if query.split_character != None && query.split_targets.as_ref().unwrap_or(&Vec::new()).contains(&key.to_string()) && value.contains(query.split_character.as_ref().unwrap()){
                             let value = value.split(query.split_character.as_ref().unwrap()).collect::<Vec<&str>>();
-                            match query.graph_targets.as_ref(){
-                                Some(val) => {
-                                        if val.contains(&key.to_string()){
-                                            for i in 0..value.len(){ if value[i] != "" {
-                                                res_values.insert(format!("{}_{}", key_formated, i), value[i].parse().unwrap());
-                                            }}
-                                        }
-                                    },
-                                None => ()/* println!("Error message from router") */
+                            if let Some(val) = query.graph_targets.as_ref(){
+                                if val.contains(&key.to_string()){
+                                    for i in 0..value.len(){ if value[i] != "" {
+                                        res_values.push((format!("{}_{}", key_formated, i), true, value[i].to_string()));
+                                    }}
+                                }
                             }
-                            match &query.attributes{
-                                Some(val) => {
-                                    if val.contains(&key.to_string()){
-                                        for i in 0..value.len(){ if value[i] != "" {
-                                            res_keys.insert(format!("{}_{}", key_formated, i), String::from(value[i]));
-                                        }}
-                                    }
-                                },
-                                None => { for i in 0..value.len(){ if value[i] != "" { res_keys.insert(format!("{}_{}", key, i), String::from(value[i])); } } }
+                            if let Some(val) = &query.attributes{
+                                if val.contains(&key.to_string()){
+                                    for i in 0..value.len(){ if value[i] != "" {
+                                        res_values.push((format!("{}_{}", key_formated, i), false, value[i].to_string()));
+                                    }}
+                                }
                             }
+                            else if &None == &query.attributes { for i in 0..value.len(){ if value[i] != "" { res_values.push((format!("{}_{}", key_formated, i), false, String::from(value[i]))); } } }
                         }else{
-                            match query.graph_targets.as_ref(){
-                                Some(val) => {
-                                        if val.contains(&key.to_string()){
-                                            res_values.insert(String::from(&key_formated), value.parse().unwrap());
-                                        }
-                                    },
-                                None => ()/* println!("Error message from router") */
+                            if let Some(val) = query.graph_targets.as_ref(){
+                                if val.contains(&key.to_string()){
+                                    res_values.push((String::from(&key_formated), true, value.to_string()));
+                                }
                             }
-                            match &query.attributes{
-                                Some(val) => {
-                                    if val.contains(&key.to_string()){
-                                        res_keys.insert(key_formated, String::from(value));
-                                    }
-                                },
-                                None => { res_keys.insert(key_formated, String::from(value)); }
-                            }
+                            if let Some(val) = &query.attributes {
+                                if val.contains(&key.to_string()){
+                                    res_values.push((key_formated, false, String::from(value)));
+                                }
+                            }else if &query.attributes == &None{ res_values.push((key_formated, false, String::from(value))); }
                         }
                     }
                 }
             }
-            self.web_responce_formater(query, &res_keys, &res_values, &mut res);
+
+            // println!("{:?}", res_values);
+            res_values.push((String::from("routerboard_address"), false, self.address.to_string()));
+            res.entry(query.name.to_string()).or_insert(Vec::new()).push(res_values);
             
 
             Ok(res)
         }
 
         /// Converts keys and values from `response_decoder` into a result string vector
-        fn web_responce_formater(&self, query: &Queries, res_keys: &HashMap<String, String>, res_values: &HashMap<String, usize>, res: &mut Vec<String>) {
-            if res_values.len() == 0{
-                res.push(
-                    String::from(format!("miktik_{}{{routerboard_address=\"{}\"{}}} 0", query.name, self.address.to_string(),
-                            (|| -> String {  
-                                let mut res = String::new(); 
-                                for (key, value) in res_keys {
-                                    res += &format!(", {}_{}=\"{}\"", query.name, key, value); 
-                                }
-                                res
-                            })()
-                        ))
-                );
-            }else{
-                for (key, value) in res_values{
-                    res.push(
-                        String::from(format!("miktik_{}_{}{{routerboard_address=\"{}\"{}}} {}", query.name, key.replace("-", "_"), self.address.to_string(),
-                            (|| -> String {  
-                                let mut res = String::new(); 
-                                for (key, value) in res_keys {
-                                    res += &format!(", {}_{}=\"{}\"", query.name, key, value); 
-                                }
-                                res
-                            })(),
-                            value.to_string() 
-                        ))
-                    );
+        fn web_responce_formater(data: &mut HashMap<String, Vec<Vec<(String, bool, String)>>>, output: &mut String) {
+            for (query_name, attributes) in data{
+                for attribute in attributes{
+                    let mut attributes_slice = Vec::new();
+                    let mut to_display = HashMap::<String, isize>::new();
+                    for (attribute_name, displayshion, value) in attribute {
+                        if *displayshion { if let Ok(val) = value.parse::<isize>(){ to_display.insert(attribute_name.to_string(), val); } }
+                        else{ 
+                            if attribute_name != "routerboard_address" {
+                                attributes_slice.push(format!( "{}_{}=\"{}\"", query_name, attribute_name.replace("-", "_"), value ));
+                            } else {
+                                attributes_slice.push(format!( "{}=\"{}\"", attribute_name.replace("-", "_"), value ));
+                            }
+                        }
+                    }
+                    if to_display.len() == 0 { output.push_str( &format!("miktik_{}{{{}}} 0\n", query_name, attributes_slice.join(", ")) ); }
+                    for (attribute_name, value) in to_display {
+                        output.push_str( &format!("miktik_{}_{}{{{}}} {}\n", query_name, attribute_name, attributes_slice.join(", "), value) );
+                    }
                 }
             }
         }
@@ -347,8 +344,7 @@ pub mod miktik_api{
         /// Sends commands from list to routerboard after [Login] has been perforned
         /// 
         /// [Login]: login
-        // pub fn tell_get(&mut self, lines: &Vec::<String>, verbose: bool, query: &Queries, container: &mut Vec<String>) -> Result<(), ConnectionError>{//sender: &mut [net::TcpStream]
-        pub fn tell_get(&mut self, lines: &Vec::<String>, verbose: bool, query: &Queries) -> Result<Vec<String>, ConnectionError>{//sender: &mut [net::TcpStream]
+        pub fn tell_get(&mut self, lines: &Vec::<String>, verbose: bool, query: &Queries) -> Result<HashMap::<String, Vec<Vec<(String, bool, String)>>>, ConnectionError>{//sender: &mut [net::TcpStream]
             let mut text = Vec::<u8>::new();
             for l in lines{
                 for x in hexer(l.as_bytes(), false){
@@ -356,7 +352,7 @@ pub mod miktik_api{
                 }
             }
             match &query.query{
-                Some(val) => { for l in val { for x in hexer(l.as_bytes(), false) { text.push(x); } } }
+                Some(val) => { for l in &*val.lock().unwrap() { for x in hexer(l.as_bytes(), false) { text.push(x); } } }
                 None => ()
             }
             text.push(0);
@@ -367,7 +363,7 @@ pub mod miktik_api{
                 Ok(val) => val,
                 Err(err) => return Err(ConnectionError::IoError(err))
             };
-            let hash_res = self.response_decoder(&output[..], query);
+            let hash_res = self.response_decoder(&output[..], query, verbose);
             if verbose == true{
                 match &hash_res{
                     Ok(val) => println!(">> {:#?}", val),
@@ -376,21 +372,22 @@ pub mod miktik_api{
             }
 
             match hash_res{
-                // Ok(mut value) => { container.append(&mut value); return Ok(()); },
                 Ok(value) => Ok(value),
                 Err(msg) => Err(ConnectionError::ResponceError(msg))
             }
         }
         
         /// Executes commands from list runs web server with metrics to be reserved by prometheus
-        // pub async fn queries_teller(&mut self, queries: Commands, verbosibility: bool, uri: String, port: u32, ) -> Vec::<HashMap<String, String>> {
         pub async fn queries_teller(connections: Arc<Vec<Mutex<Connector>>>, queries_file: String, verbosibility: bool, uri: String, port: u32, ) -> bool /*Vec::<String>*/ {
-            // let mut metrics = Vec::<String>::new(); 
-            let metrics = Arc::new(Mutex::new(Vec::<String>::new()));
+            let metrics = Arc::new(Mutex::new(HashMap::<String, Vec<Vec<(String, bool, String)>>>::new()));
             let server = tiny_http::Server::http(format!("{}:{}", uri, port)).unwrap();
             let mut queries: Arc<Commands> = Arc::new(type_reader(&queries_file));
             let reconnect_candidates = Arc::new(Mutex::new(Vec::new()));
             let connections_len = connections.len();
+
+            for i in 0..connections_len{
+                if !connections[i].lock().unwrap().connected { reconnect_candidates.lock().unwrap().push(i); }
+            }
 
             println!("{}Starting listening{} on: {}http://{}:{}{}", color::Fg(color::LightGreen), color::Fg(color::Reset), color::Fg(color::LightCyan), uri, port, color::Fg(color::Reset));
 
@@ -405,8 +402,6 @@ pub mod miktik_api{
                     "/metrics" => {
                         println!("{}{:?}{}:\twent to metrics page", style::Bold, request, style::Reset);
 
-                        // adding commands output
-                        // for i in 0..connections.len(){
                         let mut tasks = Vec::new();
                         for i in 0..connections_len {
                             if !reconnect_candidates.lock().unwrap().contains(&i){
@@ -416,28 +411,43 @@ pub mod miktik_api{
                                 let metrics = Arc::clone(&metrics);
                                 tasks.push(thread::spawn( move || {
                                     for command in &queries.commands{
-                                        // println!("{}", command.command);
-                    
-                                        match connections[i].lock().unwrap().tell_get( &vec![ command.command.to_string() ], verbosibility, command){
-                                            Ok( mut val ) => { metrics.lock().unwrap().append(&mut val); },
-                                            Err(err) => {
-                                                match err{
-                                                    ConnectionError::ResponceError(msg) => eprintln!("{}", msg),
-                                                    ConnectionError::IoError(_err_) => { reconnect_candidates.lock().unwrap().push(i); eprintln!("Conneciton eror: {:?}", _err_); break; }
+                                        let mut prev = Vec::new();
+                                        if let Some(query) = &command.query {
+                                            let query_len = query.lock().unwrap().len();
+                                            for item in 0..query_len {
+                                                if query.lock().unwrap()[item].contains("${"){
+                                                    let mut  opened = false;
+                                                    let value = query.lock().unwrap()[item].chars().map( |x| { if x == '}' { opened = false; } if opened { return x } if x == '{' { opened = true; } ' '  } ).collect::<String>();
+                                                    let mut value = value.trim().split('.');
+                                                    if  let (Some(key), Some(value)) = (value.next(), value.next()){
+                                                        if let Some(entry) = metrics.lock().unwrap().get(key) {
+                                                            let mut opened = false;
+                                                            let res = (|| {let mut res = String::new(); for q in query.lock().unwrap()[item].chars() {if q == '}' { opened = false; } else if q == '{' { opened = true; res+="◊"; } else if !opened { res += &q.to_string(); }  } res } )();
+                                                            let mut res_val = String::new();
+                                                            for ent in entry.iter() { if ent.iter().any( |x| x.2 == connections[i].lock().unwrap().address.to_string() ) { for en in ent { if en.0 == value { res_val += &format!("{},", en.2); } } } }
+
+                                                            prev.push((item, (*query.lock().unwrap())[item].to_string()));
+                                                            (*query.lock().unwrap())[item] = res.replace("$◊", &format!("{}", res_val) );
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
-
-                                        // match connections[i].tell_get( &vec![ command.command.to_string() ], verbosibility, command, &mut metrics ){
-                                        //     Ok(_) => (),
-                                        //     Err(err) => {
-                                        //         match err{
-                                        //             ConnectionError::ResponceError(msg) => eprintln!("{}", msg),
-                                        //             ConnectionError::IoError(_err_) => { reconnect_candidates.push(i); eprintln!("Conneciton eror: {:?}", _err_); break; }
-                                        //         }
-                                        //     }
-                                        // }
+                                        match connections[i].lock().unwrap().tell_get( &vec![ command.command.to_string() ], verbosibility, command){
+                                            Ok( val ) => { for (key,  mut value) in val { metrics.lock().unwrap().entry(key).or_insert(Vec::new()).append(&mut value); } },
+                                            Err(err) => {
+                                                match err{
+                                                    ConnectionError::ResponceError(msg) => eprintln!("{}", msg),
+                                                    ConnectionError::IoError(_err_) => { reconnect_candidates.lock().unwrap().push(i); eprintln!("Conneciton error on {}: {:?}", connections[i].lock().unwrap().address, _err_); break; }
+                                                }
+                                            }
+                                        }
+                                        for (item, val) in prev{
+                                            (*command.query.as_ref().unwrap().lock().unwrap())[item] = val;
+                                        }
+                                        if verbosibility { println!("Command {} done on {}",  command.command, connections[i].lock().unwrap().address); }
                                     }
+                                    if verbosibility { println!("{} finished\n", connections[i].lock().unwrap().address); }
                                 }));
                             }
                         }
@@ -456,9 +466,8 @@ pub mod miktik_api{
                             }
                         }
         
-                        for value in &*metrics.lock().unwrap(){
-                                res += &format!("{}\n", value);
-                        }
+                        Connector::web_responce_formater(&mut metrics.lock().unwrap(), &mut res);
+
         
                         let response = tiny_http::Response::from_string(res);
                         let _ = request.respond(response);
@@ -512,21 +521,27 @@ pub mod miktik_api{
                         }
                     };
                 }
-
                 // std::thread::sleep(date_array_to_duration(queries.interval)); // not used because prometheus will do it itself
             }
-            // return *metrics.lock().unwrap();
             true
         }
     }
 
     impl Drop for Connector{
         fn drop(&mut self) {
-            match self.secured{
-                true => { self.ssl_stream.as_mut().unwrap().shutdown()
-                            .expect(&format!("Error during closing session {}", self.address.to_string())); },
-                false => { self.stream.as_mut().unwrap().shutdown(std::net::Shutdown::Both)
-                            .expect(&format!("Error during closing session {}", self.address.to_string())); }
+            if self.connected{
+                match self.secured{
+                    true => {
+                        if let Err(msg) = self.ssl_stream.as_mut().unwrap().shutdown(){
+                            eprintln!("Error during closing session {}\n{}", self.address.to_string(), msg);
+                        }
+                    },
+                    false => {
+                        if let Err(msg) = self.stream.as_mut().unwrap().shutdown(std::net::Shutdown::Both){
+                            eprintln!("Error during closing session {}\n{}", self.address.to_string(), msg);
+                        } 
+                    }
+                }
             }
             println!("Disconnected from {}", self.address.to_string());
         }
@@ -549,53 +564,74 @@ pub mod miktik_api{
 
         let mut l = 0; // every word length
         let mut res = String::new();
-        let mut iterator = 0; // iterrator for equal sign // temporary ( may be )
+        let mut i = 0;
 
-        for i in 0..bytes.len(){
-            if i == 0 || l == 0 { if bytes[i] == 0 && i != bytes.len() - 1 { res += "\n"; continue; } else { l = bytes[i]; } }
-            else { 
-                l -= 1;
-                match from_utf8(&[bytes[i]]){
-                    Ok(val) => {
-                        if val == "=" {
-                            if iterator % 2== 0 { res+="\n" }
-                            else { res+="="; } 
-                            iterator += 1;
-                        }
-                        else{ res += val }
-                    },
-                    Err(e) => eprint!("Error during responce decoding: {}", e) 
+        while i < bytes.len() {
+            if i == 0 || l == 0 {
+                if bytes[i] == 0 { if i != bytes.len() - 1 { res += "\n"; } i+=1; continue; } 
+                else {
+                    if       bytes[i]         < 128          { l = bytes[i] as u32; }
+                    else if (bytes[i] as u32) < 16384u32     { l = (bytes[i] as u32 - 128) * u32::pow(16, 2) + bytes[i + 1] as u32; i+=1; }
+                    else if (bytes[i] as u32) < 2097152u32   { l = (bytes[i] as u32 - 192) * u32::pow(16, 4) + bytes[i + 1] as u32 * u32::pow(16, 2) + bytes[i + 2] as u32; i+=2; }
+                    else if (bytes[i] as u32) < 268435456u32 { l = (bytes[i] as u32 - 224) * u32::pow(16, 6) + bytes[i + 1] as u32 * u32::pow(16, 4) + bytes[i + 2] as u32 * u32::pow(16, 2) + bytes[i + 3] as u32; i+=3; }
+                    else                                     { l =  bytes[i + 1] as u32    * u32::pow(16, 6) + bytes[i + 2] as u32 * u32::pow(16, 4) + bytes[i + 3] as u32 * u32::pow(16, 2) + bytes[i + 4] as u32; i+=4;}
+                    if bytes[i+1] == 61 { res+="\n"; l-=1; i+=1; }  // skips first '=' character if there is any
+                    else if bytes[i+1] >= 248 { panic!("Control bytes recieved"); } // in case of control byte
                 }
+                i+=1;
+            }
+            else {
+                match from_utf8(&bytes[ i..i + (l as usize) ]){
+                    Ok(val) => {
+                        res += val
+                    },
+                    Err(e) => eprintln!("Error during responce decoding byte {}: {}", bytes[i], e) 
+                }
+                i += l as usize;
+                l = 0;
             }
         }
 
         res
     }
     /// Converts dec base to hex and adds length in the beginning as mikrotik api want
-    fn dec_to_hec(mut value: usize) -> Vec::<u8>{
+    fn dec_to_hex(mut value: usize) -> Vec::<u8>{
+        let val = value;
         let mut res = Vec::new();
-        let too_high = value >= 268435456;
-        while value <= 16 {
-            res.push((((value / 16) % 16) * value % 16) as u8);
-            value /= 256;
+
+        while value >= 16 {
+            res.push( ( value % 16 ) as u8 );
+            value /= 16;
+            if value >= 16 {
+                *res.last_mut().unwrap() += 16 * ( value % 16 ) as u8;
+                value /= 16;
+            }else{
+                *res.last_mut().unwrap() += 16 * value as u8;
+                value = 0;
+            }
         }
-        if too_high {
-            res.reverse();
-            res.push(240 as u8);
-            res.reverse();
+        if value != 0{
+            res.push( value as u8 );
         }
+
+        // adding prefixed according to protocol
+        if      val < 16384usize     { if res.len() == 1 { res.push(0u8);} res[1] += 128; }
+        else if val < 2097152usize   { if res.len() == 2 { res.push(0u8);} res[2] += 192; }
+        else if val < 268435456usize { if res.len() == 3 { res.push(0u8);} res[3] += 224; }
+        else                         { res.push( 240 as u8 ); }
+
+        res.reverse();
         res
     }
     /// Converts dec array to hex array
     fn hexer(value: &[u8], add_last: bool) -> Vec::<u8>{
         let len = value.len();
         let mut res = Vec::<u8>::new();
-        // println!("{}", len);
         
         if len < 128{
             res.push(len as u8);
         }else {
-            res = dec_to_hec(len);
+            res = dec_to_hex(len);
         }
         
         for val in value{

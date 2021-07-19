@@ -71,9 +71,9 @@
 
         {
             "command":"/interface/monitor-traffic",
-            "query":[ "=interface=aggregate", "=duration=0.1"],
+            "query":[ "=interface=${interfaces.name}", "=once"],
             "name": "interfaces_traffic",
-            "attributes": [],
+            "attributes": ["name"],
             "graph_targets": ["rx-bits-per-second", "tx-bits-per-second"]
         },
 
@@ -82,7 +82,7 @@
             "name": "queue",
             "attributes": ["name", "parent", "priority"],
             "split_character": "/",
-            "split_attributes": ["rate"],
+            "split_targets": ["rate"],
             "graph_targets": ["rate"]
         },
         {
@@ -91,7 +91,7 @@
             "attributes": [],
             "graph_targets": ["time"],
             "split_character": "ms",
-            "split_attributes": ["time"],
+            "split_targets": ["time"],
             "query": [ "=count=1", "=address=1.1.1.1" ]
         },
         {
@@ -100,6 +100,26 @@
             "attributes": [],
             "graph_targets": ["bytes"],
             "query": ["?comment=internet counter"]
+        },
+        {
+            "command": "/ipv6/firewall/filter/print",
+            "name": "traffic_counter_v6",
+            "attributes": [],
+            "graph_targets": ["bytes"],
+            "query": ["?comment=internet counter"]
+        },
+        {
+            "command":"/interface/wireless/registration-table/print",
+            "name":"wireless_clients",
+            "attributes": ["interface", "mac-address", "rx-rate", "tx-rate", "uptime", "signal-strength", "signal-to-noise", "last-ip", "comment"]
+        },
+        {
+            "command":"/interface/wireless/registration-table/print",
+            "name":"wireless_clients",
+            "attributes": ["mac-address", "comment"],
+            "graph_targets": ["signal-strength"],
+            "split_character": "@",
+            "split_targets": ["signal-strength"]
         }
     ]
 }

@@ -42,7 +42,7 @@ async fn main(){
         return;
     }
 
-    let mut connections = Connector::initial( String::from("./config/credentials.json"), true, false ).unwrap();
+    let connections = Connector::initial( String::from("./config/credentials.json"), false ).unwrap();
     // let mut connections = Connector::initial_mutex( String::from("./config/credentials.json"), true, false ).unwrap();
 
     let uri: String = match env::vars_os().find(|x| { x.0  == "web_server_address"}){
