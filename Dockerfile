@@ -4,11 +4,15 @@ WORKDIR /miktik
 COPY . .
 
 # RUN cargo install --path .
-RUN cargo build --release
+
+# RUN cargo build --release 
+RUN cargo build --release --target armv7-unknown-linux-gnueabihf
+
 
 # FROM scratch
-# FROM alpine:latest
-FROM ubuntu:latest
+# FROM alpine:latest --platform=linux/arm/v7
+# FROM ubuntu:latest
+FROM --platform=linux/arm/v7 ubuntu:latest
 
 WORKDIR /miktik
 
@@ -21,7 +25,7 @@ COPY ./config ./config
 COPY ./templates ./templates
 
 # RUN apk update
-# RUN apk add --no-cache openssl
+# # RUN apk add --no-cache openssl
 
 # RUN apk add openssl
 # RUN apk add bash

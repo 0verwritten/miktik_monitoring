@@ -18,7 +18,9 @@ fn interactive(mut connections: std::vec::Vec<Connector>){
         }else if line == ""{
             lines.push(line.to_string());
             for i in 0..connections.len(){
-                connections[i].tell(&lines, true, None).expect("Tell error");
+                if let Err(msg) =  connections[i].tell(&lines, true, None){
+                    eprintln!("{} returned error: {}", connections[i].get_name(), msg);
+                }
             }
 
             lines.clear();
@@ -27,8 +29,6 @@ fn interactive(mut connections: std::vec::Vec<Connector>){
         }
     }
     println!("Session ended");
-
-    let a: Vec<Mutex<Connector>> = connections.into_iter().map(|x| Mutex::from(x)).collect();
 }
 
 #[async_std::main]
@@ -36,20 +36,18 @@ async fn main(){
 
     if env::args().filter( |x| {x == "-h" || x == "--help"} ).count() > 0 {
         println!("Help:\n-i\t\tget interactive console\n-h\t\tget some help\n-q <file name>\texecute commands from file ( not developed yet )\n-c <file name>\tcridentials file ( not even close to be done )\n");
-        println!("Enviroment variables example:\nweb_server_address=0.0.0.0\nweb_server_port=7878");
+        println!("Enviroment variables example:\nmiktik_server_address=0.0.0.0\nmiktik_server_port=7878");
         println!("\nHelp for interactive console:\n? - to get help again\n. - to stop\n<command> - to write command\nall queries that you want to put into the function must be on the next line\nTo send command press Enter ( new line ) again");
-    
         return;
     }
 
     let connections = Connector::initial( String::from("./config/credentials.json"), false ).unwrap();
-    // let mut connections = Connector::initial_mutex( String::from("./config/credentials.json"), true, false ).unwrap();
 
-    let uri: String = match env::vars_os().find(|x| { x.0  == "web_server_address"}){
+    let uri: String = match env::vars_os().find(|x| { x.0  == "miktik_server_address"}){
         Some(val) => val.1.into_string().unwrap(),
         None => String::from("0.0.0.0")
     };
-    let port: u32 = match env::vars_os().find(|x| { x.0 == "web_server_port"}){
+    let port: u32 = match env::vars_os().find(|x| { x.0 == "miktik_server_port"}){
         Some(val) => val.1.into_string().unwrap().parse().unwrap(),
         None => 7878
     };

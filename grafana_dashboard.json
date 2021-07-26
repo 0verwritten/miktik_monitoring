@@ -15,8 +15,8 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 1,
-  "iteration": 1625758787125,
+  "id": 4,
+  "iteration": 1626961911358,
   "links": [],
   "panels": [
     {
@@ -38,7 +38,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "continuous-RdYlGr"
+            "mode": "thresholds"
           },
           "mappings": [
             {
@@ -79,7 +79,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 3,
         "w": 3,
         "x": 0,
         "y": 1
@@ -104,7 +104,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik__connection__status__{routerboard_address=\"$instance\"}",
+          "expr": "miktik__connection__status__{routerboard_name=\"$instance_name\"}",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -167,7 +167,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_router_status{routerboard_address=\"$instance\"}",
+          "expr": "miktik_router_status{routerboard_name=\"$instance_name\"}",
           "format": "table",
           "hide": false,
           "instant": false,
@@ -233,7 +233,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_routerboard_status{routerboard_address=\"$instance\"}",
+          "expr": "miktik_routerboard_status{routerboard_name=\"$instance_name\"}",
           "format": "table",
           "hide": false,
           "instant": false,
@@ -295,7 +295,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_router_status_cpu_load{routerboard_address=\"$instance\"}",
+          "expr": "miktik_router_status_cpu_load{routerboard_name=\"$instance_name\"}",
           "interval": "",
           "legendFormat": "CPU utilization",
           "refId": "A"
@@ -394,7 +394,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "(miktik_router_status_total_memory{routerboard_address=\"$instance\"}-miktik_router_status_free_memory{routerboard_address=\"$instance\"})/miktik_router_status_total_memory{routerboard_address=\"$instance\"}",
+          "expr": "(miktik_router_status_total_memory{routerboard_name=\"$instance_name\"}-miktik_router_status_free_memory{routerboard_name=\"$instance_name\"})/miktik_router_status_total_memory{routerboard_name=\"$instance_name\"}",
           "interval": "",
           "legendFormat": "RAM",
           "refId": "A"
@@ -495,7 +495,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_router_status{routerboard_address=\"$instance\"}",
+          "expr": "miktik_router_status{routerboard_name=\"$instance_name\"}",
           "format": "table",
           "instant": false,
           "interval": "",
@@ -554,7 +554,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "(miktik_router_status_total_hdd_space{routerboard_address=\"$instance\"}-miktik_router_status_free_hdd_space{routerboard_address=\"$instance\"})/miktik_router_status_total_hdd_space{routerboard_address=\"$instance\"}",
+          "expr": "(miktik_router_status_total_hdd_space{routerboard_name=\"$instance_name\"}-miktik_router_status_free_hdd_space{routerboard_name=\"$instance_name\"})/miktik_router_status_total_hdd_space{routerboard_name=\"$instance_name\"}",
           "instant": true,
           "interval": "",
           "legendFormat": "",
@@ -571,17 +571,30 @@
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [],
+          "mappings": [
+            {
+              "from": "",
+              "id": 1,
+              "text": "Up",
+              "to": "",
+              "type": 1,
+              "value": "1"
+            },
+            {
+              "from": "",
+              "id": 2,
+              "text": "Down",
+              "to": "",
+              "type": 1,
+              "value": "0"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           }
@@ -589,12 +602,12 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 3,
+        "h": 2,
         "w": 3,
         "x": 0,
-        "y": 5
+        "y": 4
       },
-      "id": 6,
+      "id": 62,
       "options": {
         "colorMode": "value",
         "graphMode": "none",
@@ -604,7 +617,7 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "/.*/",
+          "fields": "",
           "values": false
         },
         "text": {},
@@ -614,29 +627,15 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_identity{routerboard_address=\"$instance\"}",
-          "format": "time_series",
-          "instant": false,
+          "expr": "miktik__connection__status__{routerboard_name=\"$instance_name\"}",
           "interval": "",
-          "legendFormat": "{{identity_name}}",
+          "legendFormat": "{{ routerboard_address }}",
           "refId": "A"
         }
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Identity name",
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true
-            },
-            "indexByName": {},
-            "renameByName": {}
-          }
-        }
-      ],
+      "title": "Address",
       "type": "stat"
     },
     {
@@ -689,7 +688,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_router_status{routerboard_address=\"$instance\"}",
+          "expr": "miktik_router_status{routerboard_name=\"$instance_name\"}",
           "format": "table",
           "instant": false,
           "interval": "",
@@ -701,6 +700,81 @@
       "timeShift": null,
       "title": "Model",
       "transformations": [],
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 3,
+        "x": 0,
+        "y": 6
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "text": {},
+        "textMode": "name"
+      },
+      "pluginVersion": "7.5.7",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "miktik_identity{routerboard_name=\"$instance_name\"}",
+          "format": "time_series",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "{{identity_name}}",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Identity name",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {},
+            "renameByName": {}
+          }
+        }
+      ],
       "type": "stat"
     },
     {
@@ -753,7 +827,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_router_status{routerboard_address=\"$instance\"}",
+          "expr": "miktik_router_status{routerboard_name=\"$instance_name\"}",
           "format": "table",
           "instant": false,
           "interval": "",
@@ -815,7 +889,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_router_status{routerboard_address=\"$instance\"}",
+          "expr": "miktik_router_status{routerboard_name=\"$instance_name\"}",
           "format": "table",
           "instant": false,
           "interval": "",
@@ -874,7 +948,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "(miktik_router_status_total_memory{routerboard_address=\"$instance\"}-miktik_router_status_free_memory{routerboard_address=\"$instance\"})/miktik_router_status_total_memory{routerboard_address=\"$instance\"}",
+          "expr": "(miktik_router_status_total_memory{routerboard_name=\"$instance_name\"}-miktik_router_status_free_memory{routerboard_name=\"$instance_name\"})/miktik_router_status_total_memory{routerboard_name=\"$instance_name\"}",
           "instant": true,
           "interval": "",
           "legendFormat": "",
@@ -940,7 +1014,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_router_health_temperature{routerboard_address=\"$instance\"}",
+          "expr": "miktik_router_health_temperature{routerboard_name=\"$instance_name\"}",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -1001,7 +1075,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_router_health_voltage{routerboard_address=\"$instance\"}",
+          "expr": "miktik_router_health_voltage{routerboard_name=\"$instance_name\"}",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -1057,7 +1131,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_router_status{routerboard_address=\"$instance\"}",
+          "expr": "miktik_router_status{routerboard_name=\"$instance_name\"}",
           "format": "table",
           "instant": false,
           "interval": "",
@@ -1109,7 +1183,7 @@
         "hideEmpty": false,
         "max": false,
         "min": false,
-        "rightSide": false,
+        "rightSide": true,
         "show": true,
         "total": false,
         "values": false
@@ -1132,17 +1206,117 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_interfaces_traffic_rx_bits_per_second{routerboard_address=\"$instance\"}",
+          "expr": "miktik_interfaces_traffic_rx_bits_per_second{routerboard_name=\"$instance_name\"}",
           "interval": "",
-          "legendFormat": "Download usage",
+          "legendFormat": "{{interfaces_traffic_name}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Internet download",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "transformations": [],
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:51",
+          "format": "bps",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:52",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "hiddenSeries": false,
+      "id": 60,
+      "legend": {
+        "alignAsTable": false,
+        "avg": false,
+        "current": false,
+        "hideEmpty": false,
+        "max": false,
+        "min": false,
+        "rightSide": false,
+        "show": false,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.5.7",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "miktik_interfaces_traffic_rx_bits_per_second{routerboard_name=\"$instance_name\"}",
+          "interval": "",
+          "legendFormat": "{{interfaces_traffic_name}}",
           "refId": "A"
         },
         {
           "exemplar": true,
-          "expr": "miktik_interfaces_traffic_tx_bits_per_second{routerboard_address=\"$instance\"}",
+          "expr": "miktik_interfaces_traffic_tx_bits_per_second{routerboard_name=\"$instance_name\"}",
           "hide": false,
           "interval": "",
-          "legendFormat": "Upload Usage",
+          "legendFormat": "{{interfaces_traffic_name}}",
           "refId": "B"
         }
       ],
@@ -1150,7 +1324,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Internet usage",
+      "title": "Internet upload",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1207,8 +1381,8 @@
       "gridPos": {
         "h": 6,
         "w": 12,
-        "x": 12,
-        "y": 12
+        "x": 0,
+        "y": 19
       },
       "hiddenSeries": false,
       "id": 36,
@@ -1241,7 +1415,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_queue_rate_0{routerboard_address=\"$instance\"}",
+          "expr": "miktik_queue_rate_0{routerboard_name=\"$instance_name\"}",
           "interval": "",
           "legendFormat": "{{queue_name}} download",
           "refId": "A"
@@ -1305,10 +1479,10 @@
       "fill": 1,
       "fillGradient": 1,
       "gridPos": {
-        "h": 7,
+        "h": 6,
         "w": 12,
         "x": 12,
-        "y": 18
+        "y": 19
       },
       "hiddenSeries": false,
       "id": 40,
@@ -1319,7 +1493,7 @@
         "max": false,
         "min": false,
         "rightSide": true,
-        "show": true,
+        "show": false,
         "total": false,
         "values": false
       },
@@ -1341,7 +1515,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_queue_rate_1{routerboard_address=\"$instance\"}",
+          "expr": "miktik_queue_rate_1{routerboard_name=\"$instance_name\"}",
           "interval": "",
           "legendFormat": "{{queue_name}} download",
           "refId": "A"
@@ -1396,6 +1570,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": null,
+      "description": "Cloudflare ping latency",
       "fieldConfig": {
         "defaults": {
           "unit": "ms"
@@ -1408,7 +1583,7 @@
         "h": 6,
         "w": 9,
         "x": 0,
-        "y": 19
+        "y": 25
       },
       "hiddenSeries": false,
       "id": 42,
@@ -1439,7 +1614,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_ping_test_time_0{routerboard_address=\"$instance\"}",
+          "expr": "miktik_ping_test_time_0{routerboard_name=\"$instance_name\"}",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -1451,7 +1626,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Latency",
+      "title": "Internet latency ",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -1513,10 +1688,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
+        "h": 3,
         "w": 3,
         "x": 9,
-        "y": 19
+        "y": 25
       },
       "id": 47,
       "options": {
@@ -1538,7 +1713,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_traffic_counter_bytes{routerboard_address=\"$instance\"}",
+          "expr": "miktik_traffic_counter_bytes{routerboard_name=\"$instance_name\"}",
           "instant": true,
           "interval": "",
           "legendFormat": "",
@@ -1549,20 +1724,6 @@
       "timeShift": null,
       "title": "Internet usage",
       "type": "stat"
-    },
-    {
-      "collapsed": false,
-      "datasource": null,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 25
-      },
-      "id": 20,
-      "panels": [],
-      "title": "Row title",
-      "type": "row"
     },
     {
       "datasource": null,
@@ -1578,59 +1739,64 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 0
-              },
-              {
-                "color": "green",
-                "value": 1
               }
             ]
-          }
+          },
+          "unit": "decbytes"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
-        "w": 24,
-        "x": 0,
-        "y": 26
+        "h": 3,
+        "w": 3,
+        "x": 12,
+        "y": 25
       },
-      "id": 45,
+      "id": 61,
       "options": {
-        "colorMode": "background",
-        "graphMode": "none",
+        "colorMode": "value",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "last"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
         },
         "text": {},
-        "textMode": "name"
+        "textMode": "auto"
       },
       "pluginVersion": "7.5.7",
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_interfaces_running{routerboard_address=\"$instance\"}",
-          "format": "time_series",
+          "expr": "miktik_traffic_counter_v6_bytes{routerboard_name=\"$instance_name\"}",
           "instant": true,
           "interval": "",
-          "legendFormat": "{{interfaces_name}}",
+          "legendFormat": "",
           "refId": "A"
         }
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "Active interfaces",
-      "transformations": [],
+      "title": "Ipv6 internet usage",
       "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "id": 20,
+      "panels": [],
+      "title": "Interfaces",
+      "type": "row"
     },
     {
       "datasource": null,
@@ -1668,7 +1834,7 @@
       },
       "id": 48,
       "options": {
-        "colorMode": "value",
+        "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
@@ -1686,7 +1852,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_interfaces_disabled{routerboard_address=\"$instance\"}",
+          "expr": "miktik_interfaces_disabled{routerboard_name=\"$instance_name\"}",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -1699,6 +1865,88 @@
       "title": "Enabled interfaces",
       "transformations": [],
       "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 38
+      },
+      "id": 45,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "name"
+      },
+      "pluginVersion": "7.5.7",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "miktik_interfaces_running{routerboard_name=\"$instance_name\"}",
+          "format": "time_series",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "{{interfaces_name}}",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Active interfaces",
+      "transformations": [],
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 44
+      },
+      "id": 57,
+      "panels": [],
+      "title": "Addresses",
+      "type": "row"
     },
     {
       "datasource": null,
@@ -1757,7 +2005,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 38
+        "y": 45
       },
       "id": 2,
       "options": {
@@ -1769,7 +2017,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_address_info{routerboard_address=\"$instance\"}",
+          "expr": "miktik_address_info{routerboard_name=\"$instance_name\"}",
           "format": "table",
           "instant": true,
           "interval": "",
@@ -1791,7 +2039,7 @@
               "__name__": true,
               "instance": true,
               "job": true,
-              "routerboard_address": true
+              "routerboard_name": true
             },
             "indexByName": {
               "Time": 0,
@@ -1802,7 +2050,7 @@
               "address_info_network": 4,
               "instance": 5,
               "job": 6,
-              "routerboard_address": 7
+              "routerboard_name": 7
             },
             "renameByName": {
               "address_info_address": "Address",
@@ -1883,7 +2131,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 38
+        "y": 45
       },
       "id": 4,
       "options": {
@@ -1894,7 +2142,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "miktik_dhcp_leases{routerboard_address=\"$instance\"}",
+          "expr": "miktik_dhcp_leases{routerboard_name=\"$instance_name\"}",
           "format": "table",
           "instant": true,
           "interval": "",
@@ -1914,7 +2162,7 @@
               "dhcp_leases_address": false,
               "instance": true,
               "job": true,
-              "routerboard_address": true
+              "routerboard_name": true
             },
             "indexByName": {},
             "renameByName": {
@@ -1938,6 +2186,958 @@
         }
       ],
       "type": "table"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 55
+      },
+      "id": 59,
+      "panels": [],
+      "title": "Wireless",
+      "type": "row"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": null,
+            "filterable": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Network"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": null
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Address"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 227
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 56
+      },
+      "id": 51,
+      "options": {
+        "frameIndex": 2,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "wireless_clients_rx_rate"
+          }
+        ]
+      },
+      "pluginVersion": "7.5.7",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "miktik_wireless_clients{routerboard_name=\"$instance_name\"}",
+          "format": "table",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Wireless clients",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "instance": true,
+              "job": true,
+              "routerboard_name": true
+            },
+            "indexByName": {
+              "Time": 0,
+              "Value": 5,
+              "__name__": 1,
+              "instance": 2,
+              "job": 3,
+              "routerboard_name": 4,
+              "wireless_clients_comment": 6,
+              "wireless_clients_interface": 7,
+              "wireless_clients_last_ip": 8,
+              "wireless_clients_mac_address": 9,
+              "wireless_clients_rx_rate": 10,
+              "wireless_clients_signal_strength": 12,
+              "wireless_clients_signal_to_noise": 13,
+              "wireless_clients_tx_rate": 11,
+              "wireless_clients_uptime": 14
+            },
+            "renameByName": {
+              "address_info_address": "Address",
+              "address_info_interface": "Interface",
+              "address_info_network": "Network",
+              "wireless_clients_comment": "Comment",
+              "wireless_clients_interface": "Interface",
+              "wireless_clients_last_ip": "Last ip",
+              "wireless_clients_mac_address": "mac-address",
+              "wireless_clients_rx_rate": "rx rate",
+              "wireless_clients_signal_strength": "signal strength",
+              "wireless_clients_signal_to_noise": "signal to noise",
+              "wireless_clients_tx_rate": "tx rate",
+              "wireless_clients_uptime": "up time"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "desc": false,
+                "field": "Address"
+              }
+            ]
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "fill": 0,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 65
+      },
+      "hiddenSeries": false,
+      "id": 53,
+      "legend": {
+        "alignAsTable": false,
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.5.7",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "miktik_wireless_clients_signal_strength_0{routerboard_name=\"$instance_name\"}",
+          "interval": "",
+          "legendFormat": "{{wireless_clients_comment}} {{wireless_clients_mac_address}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Wireless clients' noise",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:96",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:97",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 65
+      },
+      "hiddenSeries": false,
+      "id": 55,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.5.7",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": true,
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "count(miktik_wireless_clients_signal_strength_0{routerboard_name=\"$instance_name\"})",
+          "interval": "",
+          "legendFormat": "Clients amount",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Amount of clietns",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "collapsed": true,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 73
+      },
+      "id": 66,
+      "panels": [
+        {
+          "datasource": null,
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": null,
+                "filterable": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Network"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": null
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Address"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 227
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 74
+          },
+          "id": 67,
+          "options": {
+            "frameIndex": 2,
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": false,
+                "displayName": "wireless_clients_rx_rate"
+              }
+            ]
+          },
+          "pluginVersion": "7.5.7",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "miktik_cap_clients{routerboard_name=\"$instance_name\"}",
+              "format": "table",
+              "instant": true,
+              "interval": "",
+              "legendFormat": "",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Wireless cap clients",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "Value": true,
+                  "__name__": true,
+                  "instance": true,
+                  "job": true,
+                  "routerboard_name": true
+                },
+                "indexByName": {
+                  "Time": 0,
+                  "Value": 5,
+                  "__name__": 1,
+                  "instance": 2,
+                  "job": 3,
+                  "routerboard_name": 4,
+                  "wireless_clients_comment": 6,
+                  "wireless_clients_interface": 7,
+                  "wireless_clients_last_ip": 8,
+                  "wireless_clients_mac_address": 9,
+                  "wireless_clients_rx_rate": 10,
+                  "wireless_clients_signal_strength": 12,
+                  "wireless_clients_signal_to_noise": 13,
+                  "wireless_clients_tx_rate": 11,
+                  "wireless_clients_uptime": 14
+                },
+                "renameByName": {
+                  "address_info_address": "Address",
+                  "address_info_interface": "Interface",
+                  "address_info_network": "Network",
+                  "cap_clients_interface": "Interface",
+                  "cap_clients_mac_address": "mac address",
+                  "cap_clients_rx_rate": "rx rate",
+                  "cap_clients_tx_rate": "tx rate",
+                  "cap_clients_uptime": "uptime",
+                  "wireless_clients_comment": "Comment",
+                  "wireless_clients_interface": "Interface",
+                  "wireless_clients_last_ip": "Last ip",
+                  "wireless_clients_mac_address": "mac-address",
+                  "wireless_clients_rx_rate": "rx rate",
+                  "wireless_clients_signal_strength": "signal strength",
+                  "wireless_clients_signal_to_noise": "signal to noise",
+                  "wireless_clients_tx_rate": "tx rate",
+                  "wireless_clients_uptime": "up time"
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "fields": {},
+                "sort": [
+                  {
+                    "desc": false,
+                    "field": "Address"
+                  }
+                ]
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": null,
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": null,
+                "filterable": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Network"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": null
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Address"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 204
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 82
+          },
+          "id": 68,
+          "options": {
+            "frameIndex": 2,
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "7.5.7",
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "miktik_cap_instances{routerboard_name=\"$instance_name\"}",
+              "format": "table",
+              "instant": true,
+              "interval": "",
+              "legendFormat": "",
+              "queryType": "randomWalk",
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Wireless cap clients",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "Value": true,
+                  "__name__": true,
+                  "cap_instances_name": true,
+                  "instance": true,
+                  "job": true,
+                  "routerboard_name": true
+                },
+                "indexByName": {
+                  "Time": 0,
+                  "Value": 5,
+                  "__name__": 1,
+                  "cap_instances_address": 8,
+                  "cap_instances_board": 9,
+                  "cap_instances_identity": 6,
+                  "cap_instances_name": 7,
+                  "cap_instances_version": 10,
+                  "instance": 2,
+                  "job": 3,
+                  "routerboard_name": 4
+                },
+                "renameByName": {
+                  "address_info_address": "Address",
+                  "address_info_interface": "Interface",
+                  "address_info_network": "Network",
+                  "cap_clients_interface": "Interface",
+                  "cap_clients_mac_address": "mac address",
+                  "cap_clients_rx_rate": "rx rate",
+                  "cap_clients_tx_rate": "tx rate",
+                  "cap_clients_uptime": "uptime",
+                  "cap_instances_address": "Address",
+                  "cap_instances_board": "Board model",
+                  "cap_instances_identity": "Identity",
+                  "cap_instances_name": "Name",
+                  "cap_instances_version": "OS version",
+                  "wireless_clients_comment": "Comment",
+                  "wireless_clients_interface": "Interface",
+                  "wireless_clients_last_ip": "Last ip",
+                  "wireless_clients_mac_address": "mac-address",
+                  "wireless_clients_rx_rate": "rx rate",
+                  "wireless_clients_signal_strength": "signal strength",
+                  "wireless_clients_signal_to_noise": "signal to noise",
+                  "wireless_clients_tx_rate": "tx rate",
+                  "wireless_clients_uptime": "up time"
+                }
+              }
+            },
+            {
+              "id": "sortBy",
+              "options": {
+                "fields": {},
+                "sort": [
+                  {
+                    "desc": false,
+                    "field": "Address"
+                  }
+                ]
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 5,
+            "w": 12,
+            "x": 12,
+            "y": 82
+          },
+          "hiddenSeries": false,
+          "id": 69,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "7.5.7",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": true,
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "count(miktik_cap_instances{routerboard_name=\"$instance_name\"})",
+              "interval": "",
+              "legendFormat": "Clients amount",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Amount of access point",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 6,
+            "w": 12,
+            "x": 12,
+            "y": 87
+          },
+          "hiddenSeries": false,
+          "id": 63,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "7.5.7",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": true,
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "count(miktik_cap_clients{routerboard_name=\"$instance_name\"})",
+              "interval": "",
+              "legendFormat": "Clients amount",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Amount of clietns",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "fill": 0,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 89
+          },
+          "hiddenSeries": false,
+          "id": 64,
+          "legend": {
+            "alignAsTable": false,
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "rightSide": true,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "7.5.7",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "exemplar": true,
+              "expr": "miktik_cap_clients_rx_signal{routerboard_name=\"$instance_name\"}",
+              "interval": "",
+              "legendFormat": "{{cap_clients_comment}} {{cap_clients_mac_address}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Wireless clients' noise",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:96",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:97",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        }
+      ],
+      "title": "CAPsMAN",
+      "type": "row"
     }
   ],
   "refresh": "10s",
@@ -1950,21 +3150,21 @@
         "allValue": null,
         "current": {
           "selected": true,
-          "text": "10.13.40.8:8729",
-          "value": "10.13.40.8:8729"
+          "text": "r1",
+          "value": "r1"
         },
         "datasource": null,
-        "definition": "label_values(routerboard_address)",
+        "definition": "label_values(routerboard_name)",
         "description": null,
         "error": null,
         "hide": 0,
         "includeAll": false,
-        "label": "Instance",
+        "label": "Instance name",
         "multi": false,
-        "name": "instance",
+        "name": "instance_name",
         "options": [],
         "query": {
-          "query": "label_values(routerboard_address)",
+          "query": "label_values(routerboard_name)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
@@ -1986,6 +3186,6 @@
   "timepicker": {},
   "timezone": "",
   "title": "miktik monitoring",
-  "uid": "Mka3ZE6Gz",
-  "version": 7
+  "uid": "Mka3ZE6Gx",
+  "version": 4
 }

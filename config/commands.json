@@ -33,6 +33,11 @@
             "attributes": ["name", "type", "mac-address"],
             "graph_targets": ["running", "disabled"]
         },
+        {
+            "command": "/interface/detect-internet/state/print",
+            "name": "interfaces_state",
+            "attributes": ["name", "state"]
+        },
 
 
         {
@@ -108,6 +113,8 @@
             "graph_targets": ["bytes"],
             "query": ["?comment=internet counter"]
         },
+
+
         {
             "command":"/interface/wireless/registration-table/print",
             "name":"wireless_clients",
@@ -120,6 +127,24 @@
             "graph_targets": ["signal-strength"],
             "split_character": "@",
             "split_targets": ["signal-strength"]
+        },
+
+
+        {
+            "command":"/caps-man/registration-table/print",
+            "name":"cap_clients",
+            "attributes": ["interface", "mac-address", "rx-rate", "tx-rate", "uptime", "comment"]
+        },
+        {
+            "command":"/caps-man/registration-table/print",
+            "name":"cap_clients",
+            "attributes": ["mac-address", "comment"],
+            "graph_targets": ["rx-signal"]
+        },
+        {
+            "command": "/caps-man/remote-cap/print",
+            "name": "cap_instances",
+            "attributes": ["name", "address", "board", "identity", "version"]
         }
     ]
 }

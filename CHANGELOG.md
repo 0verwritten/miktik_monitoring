@@ -4,33 +4,31 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 ## TO DO:
 
 #### Errors:
-- [ ] utf8 error handling ( never happened so far )
+- [x] utf8 error handling ( never happened so far )
 
 #### New features:
-- [ ] grafana dashboard
+- [x] grafana dashboard
 - [ ] prometheus authentication
 
 ##### Big inverntions:
-- [ ] verbosibility levels
-- [x] ability to use output from previous commands as query for next ones
-- [x] reconnect to never connected routerboards
-- [ ] docker image
-- [ ] docker container initialization process ( when mounting volumes with config file from outside )
+- [x] docker image
 - [ ] release a release
-- [ ] upgrade `README.md` file
+- [x] upgrade `README.md` file
 - [ ] Verbose and non-verbore loging update
 
 ##### Light updates:
-- [ ] update commands template and example files
-- [ ] clean up the code
+- [x] update commands template and example files
+- [x] clean up the code
 - [ ] update interactive mode ( add authorization in console, ability to choose where to take credentials from )
 
 #### Not that important:
+- [ ] verbosibility levels
+- [ ] split config into sections to choose from in cerdentials.json config file
+- [ ] docker container initialization process ( when mounting volumes with config file from outside )
 - [ ] add posibility to disable or change automatic prependix
 - [ ] custum function to that implement aditional functionality
-- [ ] class that parses certain responces ( may have to be marked to parse )
-- [ ] use router name from `credentials.json` to indentify routers
-- [ ] connect to routerboards using domain name
+- [x] use router name from `credentials.json` to indentify routers
+- [x] connect to routerboards using domain name
 - [ ] make config change on site?
 - [ ] make error type, not just a string
 - [ ] Optimise responce parsing using custum types for each query
@@ -38,6 +36,8 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 
 <!-- 
 #### Older tasks:
+- [x] ability to use output from previous commands as query for next ones
+- [x] reconnect to never connected routerboards
 - [x] add routerboard status ( up/down )
 - [x] ssl ca verification 
 - [x] ssl certificate acceptance
@@ -78,15 +78,21 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 -->
 
 ## Chages:
-
 ### Last changes:
+- Updated grafana dashboard
+- made docker image
+- added possiblity to use domain name instead of ip address
+- switched to using router name from `credentials.json` to indentify routers
+
+### Older Changes: 
+##### v0.2.2
 - fixed dropping connection error
 - added reconnection for never connected devices
 - changed the way responce is processing
+- utf8 error handling
 - added ability to use output from previous commands as query for next ones
 - fixed dec_to_hex converter
 
-### Older Changes: 
 ##### v0.2.1
 - updated dashboard
 - added status of routerboard

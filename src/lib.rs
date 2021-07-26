@@ -9,17 +9,13 @@ pub mod miktik_api{
     use std::sync::{Arc, Mutex};
 
     use std::{
-        time::{ Duration /*, SystemTime, Instant*/ },
+        time::{ Duration },
         collections::HashMap,
-        io,
-        io::{Read, Write},
-        // fs::File,
-        net,
-        net::{ /*IpAddr,*/ TcpStream } };
+        io, io::{Read, Write, ErrorKind},
+        net, net::{ TcpStream, ToSocketAddrs } };
     use core::str::from_utf8;
     use termion::{ color, style };
-    use openssl::{ ssl, ssl::{ SslMethod, /*SslConnector,*/ SslStream } };
-    // use chrono::DateTime;
+    use openssl::{ ssl, ssl::{ SslMethod, SslStream } };
 
     /// Responce Error type
     pub enum ConnectionError{
@@ -32,13 +28,14 @@ pub mod miktik_api{
     pub struct Connector{
         stream: Option<TcpStream>,
         ssl_stream: Option<SslStream<TcpStream>>,
-        address: std::net::SocketAddr,
+        address: String,
         username: Option<String>, // saves cridencials to restores session ( in development )
         password: Option<String>,
         cert: Option<String>, // cerification location of there is one
         ca_cert: Option<String>,
         secured: bool,
-        connected: bool
+        connected: bool,
+        instance_name: String
     }
 
     /// Commans config deserealization parental struct
@@ -76,11 +73,22 @@ pub mod miktik_api{
     impl Connector{
 
         /// Initialization of connection object
-        pub fn new(addr: std::net::SocketAddr, use_ssl: bool, verbose: bool, cert_file: Option<&String>, ca_cert_file: Option<&String>) -> Connector{
+        pub fn new(addr: String, instance_name: String, use_ssl: bool, cert_file: Option<&String>, ca_cert_file: Option<&String>) -> Connector{
             let connection;
-            let stream = match net::TcpStream::connect_timeout(&addr, Duration::new(2, 2)){
-                Ok(con) => con,
-                Err(err) => return Connector{ 
+            let mut stream = Err(io::Error::from(ErrorKind::NotFound));
+            if let Ok(val) = addr.to_socket_addrs(){
+                for addres in &val.collect::<Vec<_>>(){
+                    stream = match net::TcpStream::connect_timeout(&addres, Duration::new(2, 2)){
+                        Ok(con) => Ok(con),
+                        Err(err) => Err(err),
+                    };
+                    if let Ok(_) = stream{
+                        break;
+                    }
+                }
+            }
+            if let Err(_) = stream{
+                return Connector{ 
                     stream: None, 
                     ssl_stream: None, 
                     username: None, 
@@ -89,13 +97,16 @@ pub mod miktik_api{
                     address: addr, 
                     ca_cert: match ca_cert_file { Some(val) => Some(String::from(val)), None => None }, 
                     cert: match cert_file { Some(val) => Some(String::from(val)), None => None }, 
-                    connected: false
+                    connected: false,
+                    instance_name: instance_name
                 }
-            };
+            }
+            let stream = stream.unwrap();
+
             stream.set_read_timeout(    Some(Duration::new(2,0))   ).unwrap();
             stream.set_write_timeout(   Some(Duration::new(2,0))   ).unwrap();
 
-            if !use_ssl{ // if ssl is disabled
+            if !use_ssl{
                 connection = Connector{
                         stream: Some(stream),
                         ssl_stream: None,
@@ -105,7 +116,8 @@ pub mod miktik_api{
                         address: addr,
                         ca_cert: None,
                         cert: None,
-                        connected: true
+                        connected: true,
+                        instance_name: instance_name
                     };
             }else{
                 let mut connector = ssl::SslConnector::builder(SslMethod::tls_client()).unwrap();
@@ -122,17 +134,18 @@ pub mod miktik_api{
                 let connector = connector.build();
                 connection = Connector{
                         stream: None,
-                        ssl_stream: Some(connector.connect(&addr.ip().to_string(), stream).unwrap()),
+                        ssl_stream: Some(connector.connect(&addr, stream).unwrap()),
                         username: None,
                         password: None,
                         secured: true,
                         address: addr,
                         ca_cert: match ca_cert_file { Some(val) => Some(String::from(val)), None => None },
                         cert: match cert_file { Some(val) => Some(String::from(val)), None => None },
-                        connected: true
+                        connected: true,
+                        instance_name: instance_name
                     };
             }
-            println!("{}Connected{} to {}", color::Fg(color::LightGreen), color::Fg(color::Reset), addr);
+            println!("{}Connected{} to {}", color::Fg(color::LightGreen), color::Fg(color::Reset), connection.address);
             connection
         }
 
@@ -143,9 +156,9 @@ pub mod miktik_api{
             let data: Vec::<Identity> = type_reader(&file);
 
             for item in &data{
-                let mut connection = Connector::new( match item.uri.parse() { Ok(val) => val, Err(msg) => return Err(msg.to_string()) }, item.use_ssl, verbose, item.cert.as_ref(), item.ca_cert.as_ref() );
+                let mut connection = Connector::new( match item.uri.parse() { Ok(val) => val, Err(msg) => return Err(msg.to_string()) }, item.name.to_string(), item.use_ssl, item.cert.as_ref(), item.ca_cert.as_ref() );
                 if !connection.connected { 
-                    eprintln!("{}Error{} connecting to {}. Skipping", color::Fg(color::LightRed), color::Fg(color::Reset), item.uri.parse::<net::SocketAddr>().unwrap()); 
+                    eprintln!("{}Error{} connecting to {}. Skipping", color::Fg(color::LightRed), color::Fg(color::Reset), item.uri); 
                     connection.password = Some(item.password.to_string());
                     connection.username = Some(item.username.to_string());
                     connections.push(connection);
@@ -157,22 +170,21 @@ pub mod miktik_api{
                 }
             }
 
-            return if connections.len() == 0 { Err(String::from("Connected to 0 instances!"))} 
+            return  if connections.len() == 0 { Err(String::from("Connected to 0 instances!"))} 
                     else if connections.len() < data.len() { eprintln!("{}Connected to {} instences out of {}{}", color::Fg(color::LightYellow), connections.len(), data.len(), color::Fg(color::Reset)); Ok(connections) }
                     else { Ok(connections) };
         }
 
         fn reconnect(&mut self, verbose: bool) -> Result<(), ConnectionError>{
             let credentials = (self.username.as_ref().unwrap().to_string(), self.password.as_ref().unwrap().to_string());
-            *self =  Connector::new(self.address, self.secured, verbose, self.cert.as_ref(), self.ca_cert.as_ref());
-            if !self.connected {
-                self.username = Some(credentials.0);
-                self.password = Some(credentials.1);
-                return Err(ConnectionError::ResponceError("Could not connect".to_string()));
-            }
+            *self =  Connector::new(self.address.to_string(), self.instance_name.to_string(), self.secured, self.cert.as_ref(), self.ca_cert.as_ref());
             match self.login(&credentials.0, &credentials.1, true, verbose){
                 Ok(_) => Ok(()),
-                Err(err) => Err(ConnectionError::ResponceError(err))
+                Err(err) => {
+                    self.username = Some(credentials.0);
+                    self.password = Some(credentials.1);
+                    Err(ConnectionError::ResponceError(err))
+                }
             }
         }
 
@@ -180,7 +192,7 @@ pub mod miktik_api{
         pub fn login(&mut self, username: &str, pwd: &str, overwrite: bool, verbose: bool) -> Result<(), String>{
             if self.username == None || overwrite == true { self.username = Some(String::from(username)); }
             if self.password == None || overwrite == true { self.password = Some(String::from(pwd)); }
-            match self.tell(&["/login".to_string(), format!("=name={}", self.username.as_ref().unwrap()), format!("=password={}", self.password.as_ref().unwrap())].to_vec(), verbose, None){
+            match self.tell(&["/login".to_string(), format!("=name={}", self.username.as_ref().unwrap()), format!("=password={}", self.password.as_ref().unwrap())].to_vec(), false, None){
                 Ok(responce) => { 
                     if verbose == true { println!("login responce: {}", responce); }
                     if responce.contains( "!done" ) { return Ok(()); }
@@ -192,34 +204,32 @@ pub mod miktik_api{
 
         /// Reads responce from the network stream after [Teller] send the request
         /// [Teller]: tell
-        fn reader(&mut self) -> Result<String, io::Error>{ // net::TcpStream
+        fn reader(&mut self) -> Result<String, io::Error>{
             let mut res_bytes = Vec::<u8>::new();        
-            let mut data = [0 as u8; 1000]; // using 50 byte buffer
+            let mut data = [0 as u8; 50]; // using 50 byte buffer
             
             if self.secured {
                 loop{
                     match self.ssl_stream.as_mut().unwrap().read(&mut data) {
                         Ok(size) => {
                             for value in 0..size { res_bytes.push(data[value]); };
-                            
                             if size <= 7 || data[ size - 7..size] == [ 5, 33, 100, 111, 110, 101, 0 ] { break; } // '!done ' sign means end of sentence
                         },
-                        Err(err) => { return Err(err); /*panic!( "An error occurred, terminating connection {}\n", err );*/ }
-                        }
+                        Err(err) => { return Err(err); }
+                    }
 
                 }
             } else { 
-                // self.stream.as_mut().unwrap().set_read_timeout(Some(std::time::Duration::new(0, 50)));
                 loop{
                     match self.stream.as_mut().unwrap().read(&mut data) {
-                    Ok(size) => {
-                        for value in 0..size { res_bytes.push(data[value]); };
-
-                        if size <= 7 || data[ size - 7..size] == [ 5, 33, 100, 111, 110, 101, 0 ] { break; } // '!done ' sign means end of sentence
-                    },
-                    Err(err) => { return Err(err); /*panic!("An error occurred, terminating connection");*/ }
+                        Ok(size) => {
+                            for value in 0..size { res_bytes.push(data[value]); };
+                            if size <= 7 || data[ size - 7..size] == [ 5, 33, 100, 111, 110, 101, 0 ] { break; } // '!done ' sign means end of sentence
+                        },
+                        Err(err) => { return Err(err); }
                     }
-            }}
+                }
+            }
             Ok(bytes_to_str(&res_bytes))
         }
         
@@ -231,16 +241,15 @@ pub mod miktik_api{
 
             if  &fst_value.len() >= &5usize && &fst_value[..5] == "!done" && verbose{
                 return Err(format!("{}Empty message recieved{}: '!done' from {}{}{} in command {}", color::Fg(color::LightYellow), color::Fg(color::Reset), color::Fg(color::LightCyan),self.address, color::Fg(color::Reset), query.command));
-            }if &fst_value.len() >= &5usize && &fst_value[..5] == "!trap" || &fst_value.len() >= &6usize && &fst_value[..6] == "!fatal" && verbose {
-                // panic!("Here is an error during parsing because of invalid responce {:?}", landfill);
+            }if &fst_value.len() >= &5usize && &fst_value[..5] == "!trap" && verbose || &fst_value.len() >= &6usize && &fst_value[..6] == "!fatal" && verbose {
                 return Err(format!("{}{}{} responce from {}{}{} in command {}", color::Fg(color::LightRed), fst_value, color::Fg(color::Reset), color::Fg(color::LightCyan),self.address, color::Fg(color::Reset), query.command));
             }
-            let mut res_values          = Vec::<(String, bool, String)>::new();  
+            let mut res_values   = Vec::<(String, bool, String)>::new();  
             for piece in landfill{
                 {
                     if &piece[..] == "!re"{
                         
-                        res_values.push((String::from("routerboard_address"), false, self.address.to_string()));
+                        res_values.push((String::from("routerboard_name"), false, self.instance_name.to_string()));
                         res.entry(query.name.to_string()).or_insert(Vec::new()).push(res_values);
                         res_values = Vec::new();
 
@@ -285,11 +294,9 @@ pub mod miktik_api{
                 }
             }
 
-            // println!("{:?}", res_values);
-            res_values.push((String::from("routerboard_address"), false, self.address.to_string()));
+            res_values.push((String::from("routerboard_name"), false, self.instance_name.to_string()));
             res.entry(query.name.to_string()).or_insert(Vec::new()).push(res_values);
             
-
             Ok(res)
         }
 
@@ -302,7 +309,7 @@ pub mod miktik_api{
                     for (attribute_name, displayshion, value) in attribute {
                         if *displayshion { if let Ok(val) = value.parse::<isize>(){ to_display.insert(attribute_name.to_string(), val); } }
                         else{ 
-                            if attribute_name != "routerboard_address" {
+                            if attribute_name != "routerboard_address" && attribute_name != "routerboard_name" {
                                 attributes_slice.push(format!( "{}_{}=\"{}\"", query_name, attribute_name.replace("-", "_"), value ));
                             } else {
                                 attributes_slice.push(format!( "{}=\"{}\"", attribute_name.replace("-", "_"), value ));
@@ -321,6 +328,7 @@ pub mod miktik_api{
         /// 
         /// [Login]: login
         pub fn tell(&mut self, lines: &Vec::<String>, verbose: bool, _attributes: Option<&Vec<String>>) -> Result<String, io::Error>{//sender: &mut [net::TcpStream]
+            if !self.connected { return Err(io::Error::from(ErrorKind::NotConnected)); }
             let mut text = Vec::<u8>::new();
             for l in lines{
                 for x in hexer(l.as_bytes(), false){
@@ -366,7 +374,7 @@ pub mod miktik_api{
             let hash_res = self.response_decoder(&output[..], query, verbose);
             if verbose == true{
                 match &hash_res{
-                    Ok(val) => println!(">> {:#?}", val),
+                    Ok(val) => () /*println!(">> {:#?}", val)*/,
                     Err(msg) => eprintln!("{}Error{}: {}", color::Fg(color::LightRed), color::Fg(color::Reset), msg)
                 }
             }
@@ -394,7 +402,7 @@ pub mod miktik_api{
             loop{
 
                 let request = match server.recv() {
-                    Ok(rq) => { /* println!("{:?}", rq); */ rq },
+                    Ok(rq) => { rq },
                     Err(e) => { eprintln!("error: {}", e); break }
                 };
 
@@ -424,7 +432,7 @@ pub mod miktik_api{
                                                             let mut opened = false;
                                                             let res = (|| {let mut res = String::new(); for q in query.lock().unwrap()[item].chars() {if q == '}' { opened = false; } else if q == '{' { opened = true; res+="◊"; } else if !opened { res += &q.to_string(); }  } res } )();
                                                             let mut res_val = String::new();
-                                                            for ent in entry.iter() { if ent.iter().any( |x| x.2 == connections[i].lock().unwrap().address.to_string() ) { for en in ent { if en.0 == value { res_val += &format!("{},", en.2); } } } }
+                                                            for ent in entry.iter() { if ent.iter().any( |x| x.2 == connections[i].lock().unwrap().instance_name.to_string() ) { for en in ent { if en.0 == value { res_val += &format!("{},", en.2); } } } }
 
                                                             prev.push((item, (*query.lock().unwrap())[item].to_string()));
                                                             (*query.lock().unwrap())[item] = res.replace("$◊", &format!("{}", res_val) );
@@ -451,23 +459,18 @@ pub mod miktik_api{
                                 }));
                             }
                         }
-
                         for task in tasks{
                             task.join().unwrap();
                         }
-        
-                        let mut res = "".to_owned();
 
+                        let mut res = "".to_owned();
                         for i in 0..connections_len{
-                            if  (&*reconnect_candidates.lock().unwrap()).contains(&i){
-                                res += &format!("miktik__connection__status__{{routerboard_address=\"{}\"}} 0\n", connections[i].lock().unwrap().address.to_string());
-                            }else{
-                                res += &format!("miktik__connection__status__{{routerboard_address=\"{}\"}} 1\n", connections[i].lock().unwrap().address.to_string());
-                            }
+                            res += "miktik__connection__status__{routerboard_address=\""; res += &connections[i].lock().unwrap().address[..];
+                            res += "\", routerboard_name=\""; res += &connections[i].lock().unwrap().instance_name[..]; res += "\"} ";
+                            if  (&*reconnect_candidates.lock().unwrap()).contains(&i){ res += "0\n"; } else { res += "1\n"; }
                         }
         
                         Connector::web_responce_formater(&mut metrics.lock().unwrap(), &mut res);
-
         
                         let response = tiny_http::Response::from_string(res);
                         let _ = request.respond(response);
@@ -503,7 +506,10 @@ pub mod miktik_api{
                 let mut removed = 0;
                 let mut recon_len = reconnect_candidates.lock().unwrap().len();
                 for i in 0..recon_len{
-                    let reconnect_res = connections[reconnect_candidates.lock().unwrap()[i]].lock().unwrap().reconnect(false);
+                    if verbosibility{
+                        println!("Starting reconnection to {}", connections[reconnect_candidates.lock().unwrap()[i]].lock().unwrap().address.to_string());
+                    }
+                    let reconnect_res = connections[reconnect_candidates.lock().unwrap()[i-removed]].lock().unwrap().reconnect(false);
                     match reconnect_res{
                         Ok(()) => { 
                             println!("{}Reconnected{} to {}", color::Fg(color::LightGreen), color::Fg(color::Reset), connections[reconnect_candidates.lock().unwrap()[i-removed]].lock().unwrap().address);
@@ -524,6 +530,11 @@ pub mod miktik_api{
                 // std::thread::sleep(date_array_to_duration(queries.interval)); // not used because prometheus will do it itself
             }
             true
+        }
+        /// Returns indentity of routerboard
+        /// 
+        pub fn get_name(&self) -> String {
+            format!("{} ({})", self.instance_name, self.address)
         }
     }
 
@@ -547,15 +558,10 @@ pub mod miktik_api{
         }
     }
 
-    /// Converts custum 4 elements date array to duration
-    // fn date_array_to_duration(time: [u8; 4]) -> Duration {
-    //     Duration::new( (((( (time[0] as u64) * 24 )+ (time[1] as u64) * 60 )+ (time[2] as u64) * 60 ) + (time[3] as u64)) as u64, 0)
-    // }
-
     /// Reads data file and returns result
     pub fn type_reader<T>(file_name: &str) -> T where T: for<'de> serde::Deserialize<'de> {
-        let file = std::fs::File::open(file_name).unwrap();
-        let file_: T = serde_json::from_reader(file).unwrap();
+        let file        = std::fs::File::open(file_name).unwrap();
+        let file_: T    = serde_json::from_reader(file).unwrap();
         return file_;
     }
 
@@ -591,9 +597,9 @@ pub mod miktik_api{
                 l = 0;
             }
         }
-
         res
     }
+
     /// Converts dec base to hex and adds length in the beginning as mikrotik api want
     fn dec_to_hex(mut value: usize) -> Vec::<u8>{
         let val = value;
@@ -623,6 +629,7 @@ pub mod miktik_api{
         res.reverse();
         res
     }
+
     /// Converts dec array to hex array
     fn hexer(value: &[u8], add_last: bool) -> Vec::<u8>{
         let len = value.len();
@@ -642,6 +649,5 @@ pub mod miktik_api{
             res.push(0);
         }
         res
-    } 
-
+    }
 }
