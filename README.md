@@ -12,7 +12,7 @@ Mikrotik monitoring tool that is integrated with **prometheus** + **grafana**. I
 - Load it: `docker load -i <name of file>`
 - Initialize it for automated usage: `docker run -v <path to config on your computer>:/miktik/config/credentials -t miktik_monitoring miktik`
 <br/>**Note:** you can optionally add key in order to change commands and add own:<br />
-`-v <path to commands.json file>:/miktik/config/credentials` 
+`-v <path to commands.json file>:/miktik/config/credentials.json` 
 - Initialization for interractive usage: `docker run miktik -i` ( in development )
 
 
