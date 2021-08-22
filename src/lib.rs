@@ -1,5 +1,6 @@
 pub mod miktik_api{
-    extern crate openssl;
+    extern crate rustls;
+    // extern crate openssl;
     extern crate serde;
     extern crate chrono;
     extern crate tiny_http;
@@ -11,11 +12,14 @@ pub mod miktik_api{
     use std::{
         time::{ Duration },
         collections::HashMap,
-        io, io::{Read, Write, ErrorKind},
-        net, net::{ TcpStream, ToSocketAddrs } };
+        fmt, fmt::{ Display, Formatter },
+        io, io::{Read, Write, ErrorKind, BufReader},
+        net, net::{ TcpStream, ToSocketAddrs }};
     use core::str::from_utf8;
     use termion::{ color, style };
-    use openssl::{ ssl, ssl::{ SslMethod, SslStream } };
+    use webpki::{DNSNameRef};
+    use rustls::{ RootCertStore, TLSError, Certificate, ServerCertVerified, ServerCertVerifier, ClientConfig, Stream, ClientSession };
+    // use openssl::{ ssl, ssl::{ SslMethod, SslStream } };
 
     /// Responce Error type
     pub enum ConnectionError{
@@ -24,10 +28,11 @@ pub mod miktik_api{
     }
 
     /// Mikrotik connector main struct
-    #[derive(Debug)]
+    // #[derive(Debug)]
     pub struct Connector{
         stream: Option<TcpStream>,
-        ssl_stream: Option<SslStream<TcpStream>>,
+        // ssl_stream: Option<SslStream<TcpStream>>,
+        ssl_stream: Option<ClientSession>,
         address: String,
         username: Option<String>, // saves cridencials to restores session ( in development )
         password: Option<String>,
@@ -78,6 +83,7 @@ pub mod miktik_api{
             let mut stream = Err(io::Error::from(ErrorKind::NotFound));
             if let Ok(val) = addr.to_socket_addrs(){
                 for addres in &val.collect::<Vec<_>>(){
+                    // stream = match net::TcpStream::connect(&addr){
                     stream = match net::TcpStream::connect_timeout(&addres, Duration::new(2, 2)){
                         Ok(con) => Ok(con),
                         Err(err) => Err(err),
@@ -120,21 +126,35 @@ pub mod miktik_api{
                         instance_name: instance_name
                     };
             }else{
-                let mut connector = ssl::SslConnector::builder(SslMethod::tls_client()).unwrap();
-                if let Some(ca_file) = ca_cert_file {
-                    connector.set_ca_file( std::path::Path::new(ca_file)).unwrap();
-                    connector.set_verify(ssl::SslVerifyMode::PEER); 
-                }else if let Some(cert) = cert_file{
-                    connector.set_certificate_file( std::path::Path::new(cert), ssl::SslFiletype::PEM ).unwrap();
-                    connector.set_verify(ssl::SslVerifyMode::PEER); 
+                // let mut connector = ssl::SslConnector::builder(SslMethod::tls_client()).unwrap();
+                let mut connector = ClientConfig::new();
+                if let Some(ca_file) = ca_cert_file {    
+                    connector.root_store.add_pem_file(&mut BufReader::new(std::fs::File::open(ca_file).unwrap())).unwrap();
+                    // connector.set_ca_file( std::path::Path::new(ca_file)).unwrap();
+                    // connector.set_verify(ssl::SslVerifyMode::PEER);
+                    println!("\nca");
+                } if let Some(_cert) = cert_file{
+                    println!("cert\n");
+                    // connector.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
+                    // connector.set_certificate_file( std::path::Path::new(cert), ssl::SslFiletype::PEM ).unwrap();
+                    // connector.set_verify(ssl::SslVerifyMode::PEER); 
                 } else { 
                     eprintln!("{}Warning!{} No certificate verification used in {}", color::Fg(color::Yellow), color::Fg(color::Reset), addr);
-                    connector.set_verify(ssl::SslVerifyMode::NONE);
+                    connector.dangerous().set_certificate_verifier(Arc::new(NoVerify {}));
+                    // connector.set_verify(ssl::SslVerifyMode::NONE);
                 }
-                let connector = connector.build();
+                println!("{}",addr);
+                let dns_name = webpki::DNSNameRef::try_from_ascii_str(&addr.split(":").nth(0).unwrap()).unwrap();
+
+
+                // let connector = connector.build();
+
                 connection = Connector{
-                        stream: None,
-                        ssl_stream: Some(connector.connect(&addr, stream).unwrap()),
+                        // stream: None,
+                        stream: Some(stream),
+                        // ssl_stream: Some(connector.connect(&addr, stream).unwrap()),
+                        // ssl_stream: Some(Stream::new(&mut ClientSession::new(&Arc::new(connector), dns_name), &mut stream)),
+                        ssl_stream: Some(ClientSession::new(&Arc::new(connector), dns_name)),
                         username: None,
                         password: None,
                         secured: true,
@@ -209,8 +229,9 @@ pub mod miktik_api{
             let mut data = [0 as u8; 50]; // using 50 byte buffer
             
             if self.secured {
+                let mut tls_stream = Stream::new(self.ssl_stream.as_mut().unwrap(), self.stream.as_mut().unwrap());
                 loop{
-                    match self.ssl_stream.as_mut().unwrap().read(&mut data) {
+                    match tls_stream.read(&mut data) {
                         Ok(size) => {
                             for value in 0..size { res_bytes.push(data[value]); };
                             if size <= 7 || data[ size - 7..size] == [ 5, 33, 100, 111, 110, 101, 0 ] { break; } // '!done ' sign means end of sentence
@@ -336,7 +357,11 @@ pub mod miktik_api{
                 }
             }
             text.push(0);
-            if self.secured { (self.ssl_stream.as_mut().unwrap()).write(&text).unwrap(); } 
+            if self.secured { 
+                let mut tls_stream = Stream::new(self.ssl_stream.as_mut().unwrap(), self.stream.as_mut().unwrap());
+                // (self.ssl_stream.as_mut().unwrap()).write(&text).unwrap();
+                tls_stream.write(&text).unwrap(); 
+            } 
             else            { self.stream.as_mut().unwrap().write(&text).unwrap(); }
             
             let output = match self.reader(){
@@ -364,7 +389,11 @@ pub mod miktik_api{
                 None => ()
             }
             text.push(0);
-            if self.secured { (self.ssl_stream.as_mut().unwrap()).write(&text).unwrap(); } 
+            if self.secured { 
+                let mut tls_stream = Stream::new(self.ssl_stream.as_mut().unwrap(), self.stream.as_mut().unwrap());
+                // (self.ssl_stream.as_mut().unwrap()).write(&text).unwrap();
+                tls_stream.write(&text).unwrap(); 
+            } 
             else            { self.stream.as_mut().unwrap().write(&text).unwrap(); }
             
             let output = match self.reader(){
@@ -374,7 +403,7 @@ pub mod miktik_api{
             let hash_res = self.response_decoder(&output[..], query, verbose);
             if verbose == true{
                 match &hash_res{
-                    Ok(val) => () /*println!(">> {:#?}", val)*/,
+                    Ok(_val) => () /*println!(">> {:#?}", _val)*/,
                     Err(msg) => eprintln!("{}Error{}: {}", color::Fg(color::LightRed), color::Fg(color::Reset), msg)
                 }
             }
@@ -465,7 +494,8 @@ pub mod miktik_api{
 
                         let mut res = "".to_owned();
                         for i in 0..connections_len{
-                            res += "miktik__connection__status__{routerboard_address=\""; res += &connections[i].lock().unwrap().address[..];
+                            // res += "miktik__connection__status__{routerboard_address=\""; res += &connections[i].lock().unwrap().address[..];
+                            res += "miktik__connection__status__{";
                             res += "\", routerboard_name=\""; res += &connections[i].lock().unwrap().instance_name[..]; res += "\"} ";
                             if  (&*reconnect_candidates.lock().unwrap()).contains(&i){ res += "0\n"; } else { res += "1\n"; }
                         }
@@ -531,10 +561,14 @@ pub mod miktik_api{
             }
             true
         }
-        /// Returns indentity of routerboard
+
+        /// Returns connection state
         /// 
-        pub fn get_name(&self) -> String {
-            format!("{} ({})", self.instance_name, self.address)
+        pub fn is_connected(&self) -> bool { self.connected }
+    }
+    impl Display for Connector {
+        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+            write!(f, "{} ({})", self.instance_name, self.address)
         }
     }
 
@@ -543,9 +577,9 @@ pub mod miktik_api{
             if self.connected{
                 match self.secured{
                     true => {
-                        if let Err(msg) = self.ssl_stream.as_mut().unwrap().shutdown(){
-                            eprintln!("Error during closing session {}\n{}", self.address.to_string(), msg);
-                        }
+                        // if let Err(msg) = self.ssl_stream.as_mut().unwrap().shutdown(){
+                        //     eprintln!("Error during closing session {}\n{}", self.address.to_string(), msg);
+                        // }
                     },
                     false => {
                         if let Err(msg) = self.stream.as_mut().unwrap().shutdown(std::net::Shutdown::Both){
@@ -556,6 +590,21 @@ pub mod miktik_api{
             }
             println!("Disconnected from {}", self.address.to_string());
         }
+    }
+
+    /// Disables versification in ssl connection if no certificate is present and cert is invalid
+    struct NoVerify {}
+    impl ServerCertVerifier for NoVerify{
+        fn verify_server_cert(
+            &self, 
+            _roots: &RootCertStore, 
+            _presented_certs: &[Certificate], 
+            _dns_name: DNSNameRef<'_>, 
+            _ocsp_response: &[u8]
+        ) -> Result<ServerCertVerified, TLSError>{
+            Ok(ServerCertVerified::assertion())
+        }
+
     }
 
     /// Reads data file and returns result

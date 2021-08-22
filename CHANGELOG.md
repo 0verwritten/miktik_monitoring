@@ -4,31 +4,23 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 ## TO DO:
 
 #### Errors:
-- [x] utf8 error handling ( never happened so far )
 
 #### New features:
-- [x] grafana dashboard
 - [ ] prometheus authentication
 
 ##### Big inverntions:
-- [x] docker image
-- [ ] release a release
-- [x] upgrade `README.md` file
-- [ ] Verbose and non-verbore loging update
+- [x] release a release
+- [x] Verbose and non-verbore loging update
 
 ##### Light updates:
-- [x] update commands template and example files
-- [x] clean up the code
-- [ ] update interactive mode ( add authorization in console, ability to choose where to take credentials from )
+- [x] update interactive mode ( add authorization in console, ability to choose where to take credentials from )
 
-#### Not that important:
+#### Not important:
 - [ ] verbosibility levels
 - [ ] split config into sections to choose from in cerdentials.json config file
 - [ ] docker container initialization process ( when mounting volumes with config file from outside )
 - [ ] add posibility to disable or change automatic prependix
 - [ ] custum function to that implement aditional functionality
-- [x] use router name from `credentials.json` to indentify routers
-- [x] connect to routerboards using domain name
 - [ ] make config change on site?
 - [ ] make error type, not just a string
 - [ ] Optimise responce parsing using custum types for each query
@@ -36,6 +28,14 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 
 <!-- 
 #### Older tasks:
+- [x] grafana dashboard
+- [x] docker image
+- [x] upgrade `README.md` file
+- [x] update commands template and example files
+- [x] clean up the code
+- [x] use router name from `credentials.json` to indentify routers
+- [x] connect to routerboards using domain name
+- [x] utf8 error handling ( never happened so far )
 - [x] ability to use output from previous commands as query for next ones
 - [x] reconnect to never connected routerboards
 - [x] add routerboard status ( up/down )
@@ -79,12 +79,16 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 
 ## Chages:
 ### Last changes:
+- updated interactivity
+
+
+### Older Changes: 
+##### v1.0.0
 - Updated grafana dashboard
 - made docker image
 - added possiblity to use domain name instead of ip address
 - switched to using router name from `credentials.json` to indentify routers
 
-### Older Changes: 
 ##### v0.2.2
 - fixed dropping connection error
 - added reconnection for never connected devices
