@@ -9,11 +9,8 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 - [ ] prometheus authentication
 
 ##### Big inverntions:
-- [x] release a release
-- [x] Verbose and non-verbore loging update
 
 ##### Light updates:
-- [x] update interactive mode ( add authorization in console, ability to choose where to take credentials from )
 
 #### Not important:
 - [ ] verbosibility levels
@@ -28,6 +25,9 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 
 <!-- 
 #### Older tasks:
+- [x] release a release
+- [x] Verbose and non-verbore loging update
+- [x] update interactive mode ( add authorization in console, ability to choose where to take credentials from )
 - [x] grafana dashboard
 - [x] docker image
 - [x] upgrade `README.md` file
@@ -79,11 +79,12 @@ This is file where I describe all the [changes])(#сhages) I've done so far and 
 
 ## Chages:
 ### Last changes:
-- updated interactivity
+- removed router address info
 
 
 ### Older Changes: 
 ##### v1.0.0
+- updated interactivity
 - Updated grafana dashboard
 - made docker image
 - added possiblity to use domain name instead of ip address

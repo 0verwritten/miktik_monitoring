@@ -8,6 +8,12 @@
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
         "type": "dashboard"
       }
     ]
@@ -15,8 +21,8 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 4,
-  "iteration": 1626961911358,
+  "id": 1,
+  "iteration": 1630438809336,
   "links": [],
   "panels": [
     {
@@ -42,20 +48,15 @@
           },
           "mappings": [
             {
-              "from": "",
-              "id": 1,
-              "text": "Up",
-              "to": "",
-              "type": 1,
-              "value": "1"
-            },
-            {
-              "from": "",
-              "id": 2,
-              "text": "Down",
-              "to": "",
-              "type": 1,
-              "value": "0"
+              "options": {
+                "0": {
+                  "text": "Down"
+                },
+                "1": {
+                  "text": "Up"
+                }
+              },
+              "type": "value"
             }
           ],
           "thresholds": {
@@ -79,7 +80,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 3,
+        "h": 5,
         "w": 3,
         "x": 0,
         "y": 1
@@ -100,7 +101,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -163,7 +164,7 @@
         "text": {},
         "textMode": "value"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -229,7 +230,7 @@
         "text": {},
         "textMode": "value"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -284,7 +285,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -383,7 +384,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -491,7 +492,7 @@
         "text": {},
         "textMode": "value"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -514,6 +515,8 @@
             "mode": "thresholds"
           },
           "mappings": [],
+          "max": 1,
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -550,7 +553,7 @@
         "showThresholdMarkers": true,
         "text": {}
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -563,80 +566,6 @@
       ],
       "title": "Disk usage",
       "type": "gauge"
-    },
-    {
-      "datasource": null,
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [
-            {
-              "from": "",
-              "id": 1,
-              "text": "Up",
-              "to": "",
-              "type": 1,
-              "value": "1"
-            },
-            {
-              "from": "",
-              "id": 2,
-              "text": "Down",
-              "to": "",
-              "type": 1,
-              "value": "0"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 2,
-        "w": 3,
-        "x": 0,
-        "y": 4
-      },
-      "id": 62,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "text": {},
-        "textMode": "name"
-      },
-      "pluginVersion": "7.5.7",
-      "targets": [
-        {
-          "exemplar": true,
-          "expr": "miktik__connection__status__{routerboard_name=\"$instance_name\"}",
-          "interval": "",
-          "legendFormat": "{{ routerboard_address }}",
-          "refId": "A"
-        }
-      ],
-      "timeFrom": null,
-      "timeShift": null,
-      "title": "Address",
-      "type": "stat"
     },
     {
       "datasource": null,
@@ -684,7 +613,7 @@
         "text": {},
         "textMode": "value"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -748,7 +677,7 @@
         "text": {},
         "textMode": "name"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -823,7 +752,7 @@
         "text": {},
         "textMode": "value"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -885,7 +814,7 @@
         "text": {},
         "textMode": "value"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -908,6 +837,8 @@
             "mode": "thresholds"
           },
           "mappings": [],
+          "max": 1,
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -944,7 +875,7 @@
         "showThresholdMarkers": true,
         "text": {}
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -1010,7 +941,7 @@
         "text": {},
         "textMode": "value"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -1071,7 +1002,7 @@
         "text": {},
         "textMode": "value"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -1127,7 +1058,7 @@
         "text": {},
         "textMode": "value"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -1162,10 +1093,6 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": null,
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1195,7 +1122,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1262,10 +1189,6 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": null,
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -1295,7 +1218,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1404,7 +1327,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1504,7 +1427,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1603,7 +1526,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1709,7 +1632,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -1768,7 +1691,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -1848,7 +1771,7 @@
         "text": {},
         "textMode": "name"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -1916,7 +1839,7 @@
         "text": {},
         "textMode": "name"
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -1957,6 +1880,7 @@
           },
           "custom": {
             "align": null,
+            "displayMode": "auto",
             "filterable": false
           },
           "mappings": [],
@@ -2013,7 +1937,7 @@
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -2083,6 +2007,7 @@
           },
           "custom": {
             "align": null,
+            "displayMode": "auto",
             "filterable": false
           },
           "mappings": [],
@@ -2138,7 +2063,7 @@
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -2210,6 +2135,7 @@
           },
           "custom": {
             "align": null,
+            "displayMode": "auto",
             "filterable": false
           },
           "mappings": [],
@@ -2271,7 +2197,7 @@
           }
         ]
       },
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "targets": [
         {
           "exemplar": true,
@@ -2353,10 +2279,6 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": null,
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "fill": 0,
       "fillGradient": 0,
       "gridPos": {
@@ -2385,7 +2307,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -2451,10 +2373,6 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": null,
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -2481,7 +2399,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.5.7",
+      "pluginVersion": "8.1.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -3141,7 +3059,7 @@
     }
   ],
   "refresh": "10s",
-  "schemaVersion": 27,
+  "schemaVersion": 30,
   "style": "dark",
   "tags": [],
   "templating": {
@@ -3149,9 +3067,9 @@
       {
         "allValue": null,
         "current": {
-          "selected": true,
-          "text": "r1",
-          "value": "r1"
+          "selected": false,
+          "text": "home_main",
+          "value": "home_main"
         },
         "datasource": null,
         "definition": "label_values(routerboard_name)",
@@ -3172,7 +3090,6 @@
         "skipUrlSync": false,
         "sort": 3,
         "tagValuesQuery": "",
-        "tags": [],
         "tagsQuery": "",
         "type": "query",
         "useTags": false
@@ -3186,6 +3103,6 @@
   "timepicker": {},
   "timezone": "",
   "title": "miktik monitoring",
-  "uid": "Mka3ZE6Gx",
-  "version": 4
+  "uid": "CtV1bJ4nz",
+  "version": 2
 }

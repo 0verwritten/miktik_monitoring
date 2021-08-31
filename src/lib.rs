@@ -496,7 +496,7 @@ pub mod miktik_api{
                         for i in 0..connections_len{
                             // res += "miktik__connection__status__{routerboard_address=\""; res += &connections[i].lock().unwrap().address[..];
                             res += "miktik__connection__status__{";
-                            res += "\", routerboard_name=\""; res += &connections[i].lock().unwrap().instance_name[..]; res += "\"} ";
+                            res += "routerboard_name=\""; res += &connections[i].lock().unwrap().instance_name[..]; res += "\"} ";
                             if  (&*reconnect_candidates.lock().unwrap()).contains(&i){ res += "0\n"; } else { res += "1\n"; }
                         }
         
